@@ -1,0 +1,2765 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>MODULAR — KOMATSU | Gestão de Pedidos</title>
+<script>
+(function(){
+  var CJ=['https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js','https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js','https://unpkg.com/chart.js@4.4.1/dist/chart.umd.min.js'];
+  var XL=['https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js','https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js','https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js'];
+  var done=0;
+  function fin(){if(++done>=2)document.dispatchEvent(new Event('libs-ready'));}
+  function load(urls,i){if(i>=urls.length){fin();return;}var s=document.createElement('script');s.src=urls[i];s.onload=fin;s.onerror=function(){load(urls,i+1);};document.head.appendChild(s);}
+  load(CJ,0);load(XL,0);
+})();
+</script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --k50:#e8eaf6;--k100:#c5cae9;--k200:#9fa8da;--k400:#5c6bc0;
+  --k600:#1a237e;--k700:#131980;--k800:#0d1566;--k900:#080e4a;
+  --gray-50:#f5f6fa;--gray-100:#eaecf4;--gray-200:#d0d4e8;
+  --gray-400:#8891b8;--gray-600:#4a5280;--gray-800:#1a1e3a;
+  --white:#fff;
+  --green:#27ae60;--amber:#e67e22;--coral:#e05a3a;--purple:#8e44ad;
+  --radius-sm:6px;--radius-md:10px;--radius-lg:14px;
+  --shadow-sm:0 1px 4px rgba(13,21,102,.08);--shadow-md:0 2px 14px rgba(13,21,102,.14);
+}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--gray-50);color:var(--gray-800);min-height:100vh}
+
+/* ── LOADER ── */
+#loader{position:fixed;inset:0;background:var(--k800);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;transition:opacity .4s}
+#loader.gone{opacity:0;pointer-events:none}
+.ld-logo{color:#fff;font-size:26px;font-weight:900;letter-spacing:.1em;margin-bottom:16px}
+.ld-bar{width:200px;height:3px;background:rgba(255,255,255,.18);border-radius:2px;overflow:hidden}
+.ld-bar-inner{height:100%;background:#fff;border-radius:2px;animation:lp 1.4s ease-in-out infinite}
+@keyframes lp{0%{width:10%}60%{width:85%}100%{width:100%}}
+.ld-txt{color:rgba(255,255,255,.5);font-size:12.5px;margin-top:10px}
+
+/* ── LOGIN SCREEN ── */
+#login-screen{position:fixed;inset:0;background:var(--k900);display:flex;align-items:center;justify-content:center;z-index:8000;flex-direction:column;gap:0}
+#login-screen.gone{display:none}
+.ls-card{background:var(--white);border-radius:var(--radius-lg);box-shadow:0 12px 50px rgba(4,12,74,.4);width:380px;max-width:92vw;overflow:hidden}
+.ls-top{background:var(--k800);padding:2rem 2rem 1.5rem;text-align:center}
+.ls-brand{color:var(--white);font-size:22px;font-weight:900;letter-spacing:.08em;line-height:1}
+.ls-brand-sub{color:rgba(255,255,255,.55);font-size:12px;font-weight:500;letter-spacing:.1em;margin-top:4px}
+.ls-body{padding:1.75rem 2rem 2rem}
+.ls-title{font-size:16px;font-weight:700;color:var(--k800);margin-bottom:4px}
+.ls-sub{font-size:13px;color:var(--gray-400);margin-bottom:1.4rem}
+/* role cards */
+.role-cards{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:1.25rem}
+.role-card{border:2px solid var(--gray-200);border-radius:var(--radius-md);padding:.9rem .8rem;cursor:pointer;transition:all .15s;text-align:center;background:var(--white)}
+.role-card:hover{border-color:var(--k400);background:var(--k50)}
+.role-card.selected{border-color:var(--k700);background:var(--k50)}
+.role-icon{font-size:26px;margin-bottom:6px}
+.role-name{font-size:12.5px;font-weight:700;color:var(--k800)}
+.role-desc{font-size:11px;color:var(--gray-400);margin-top:2px}
+/* fields */
+.ls-field{display:flex;flex-direction:column;gap:5px;margin-bottom:12px}
+.ls-field label{font-size:11.5px;font-weight:700;color:var(--k600)}
+.ls-field input{border:1.5px solid var(--gray-200);border-radius:var(--radius-sm);padding:8px 11px;font-size:13.5px;color:var(--gray-800);outline:none;font-family:inherit;transition:border-color .15s}
+.ls-field input:focus{border-color:var(--k400);box-shadow:0 0 0 3px rgba(92,107,192,.10)}
+.ls-field input.err{border-color:var(--coral)}
+.ls-err{font-size:11.5px;color:#c0392b;display:none;margin-top:-6px;margin-bottom:6px}
+.ls-err.show{display:block}
+.ls-btn{width:100%;padding:10px;border:none;border-radius:var(--radius-sm);background:var(--k700);color:var(--white);font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;transition:background .15s;margin-top:4px}
+.ls-btn:hover{background:var(--k900)}
+.ls-hint{font-size:11px;color:var(--gray-400);text-align:center;margin-top:10px}
+.ls-hint code{background:var(--gray-100);padding:1px 5px;border-radius:3px;font-size:10.5px}
+
+/* ── HEADER ── */
+header{background:var(--k800);padding:0 1.5rem;display:flex;align-items:center;justify-content:space-between;height:58px;position:sticky;top:0;z-index:200;box-shadow:0 2px 10px rgba(8,14,74,.35)}
+.logo{display:flex;align-items:center;gap:10px}
+.logo-modular{color:var(--white);font-size:18px;font-weight:900;letter-spacing:.08em}
+.logo-sep{color:rgba(255,255,255,.3);font-size:16px;font-weight:300}
+.logo-komatsu{color:rgba(255,255,255,.65);font-size:14px;font-weight:600;letter-spacing:.1em}
+nav{display:flex;gap:3px;flex-wrap:wrap}
+nav button{background:transparent;border:none;color:rgba(255,255,255,.7);font-size:13px;padding:6px 12px;border-radius:var(--radius-sm);cursor:pointer;transition:all .15s;font-weight:500;white-space:nowrap;font-family:inherit}
+nav button:hover,nav button.active{background:rgba(255,255,255,.14);color:var(--white)}
+/* auth area in header */
+.hdr-right{display:flex;align-items:center;gap:10px}
+.hdr-role{font-size:11.5px;font-weight:700;padding:3px 10px;border-radius:12px;white-space:nowrap}
+.hdr-role.admin{background:rgba(255,255,255,.18);color:var(--white)}
+.hdr-role.cliente{background:rgba(39,174,96,.25);color:#7fffc4}
+.btn-logout{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:rgba(255,255,255,.8);font-size:12px;font-weight:600;padding:4px 10px;border-radius:var(--radius-sm);cursor:pointer;font-family:inherit;transition:all .15s}
+.btn-logout:hover{background:rgba(255,255,255,.2);color:var(--white)}
+
+/* ── LAYOUT ── */
+main{max-width:1360px;margin:0 auto;padding:1.75rem 1.5rem}
+.section{display:none}.section.visible{display:block}
+.page-hd{margin-bottom:1.3rem}
+.page-hd h1{font-size:20px;font-weight:700;color:var(--k800)}
+.page-hd p{font-size:13px;color:var(--gray-400);margin-top:3px}
+#section-dashboard .page-hd{text-align:center;max-width:1260px;margin:0 auto 1.3rem}
+
+/* ── KPIs (dashboard main) ── */
+.kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin:0 auto 1.1rem;max-width:1260px}
+.kpi{background:var(--white);border:1px solid var(--gray-200);border-radius:var(--radius-md);padding:.65rem .85rem;box-shadow:var(--shadow-sm)}
+.kpi-label{font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--gray-400);margin-bottom:3px}
+.kpi-value{font-size:18px;font-weight:700;color:var(--k800);line-height:1}
+.kpi-sub{font-size:10px;color:var(--gray-400);margin-top:2px}
+.kpi.c-blue{border-left:3px solid var(--k400)}.kpi.c-green{border-left:3px solid var(--green)}
+.kpi.c-amber{border-left:3px solid var(--amber)}.kpi.c-coral{border-left:3px solid var(--coral)}
+.kpi.c-purple{border-left:3px solid var(--purple)}
+
+/* ── Dashboard filter card ── */
+.dash-filter-card{background:var(--white);border:1px solid var(--gray-200);border-radius:var(--radius-lg);box-shadow:var(--shadow-sm);padding:.9rem 1.1rem;margin-bottom:1.2rem;max-width:1260px;margin-left:auto;margin-right:auto}
+.dash-filter-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--k600);margin-bottom:.75rem;padding-bottom:.5rem;border-bottom:1px solid var(--gray-100)}
+.dash-filter-row{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}
+
+/* ── Dashboard charts row — 4 equal cards side by side ── */
+.dash-charts-row{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:1.5rem;max-width:1260px;margin-left:auto;margin-right:auto}
+@media(max-width:1100px){.dash-charts-row{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:640px){.dash-charts-row{grid-template-columns:1fr}}
+.dash-chart-card{background:var(--white);border:1px solid var(--gray-200);border-radius:var(--radius-lg);padding:.85rem .9rem;box-shadow:var(--shadow-sm);display:flex;flex-direction:column;min-height:0}
+.dash-chart-title{font-size:10.5px;font-weight:700;color:var(--k600);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px;flex-shrink:0}
+.dash-chart-body{position:relative;width:100%;aspect-ratio:1/1;min-height:0}
+.dash-chart-body canvas{position:absolute;inset:0;width:100%!important;height:100%!important}
+
+/* ── Company tabs ── */
+.company-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:1rem}
+.ctab{background:var(--white);border:1px solid var(--gray-200);border-radius:20px;padding:4px 15px;font-size:12.5px;font-weight:600;cursor:pointer;color:var(--gray-600);transition:all .15s;font-family:inherit}
+.ctab:hover{border-color:var(--k200);color:var(--k600)}
+.ctab.active{background:var(--k700);border-color:var(--k700);color:var(--white)}
+
+/* ── Filter bar ── */
+.filters-bar{background:var(--white);border:1px solid var(--gray-200);border-radius:var(--radius-md);padding:.75rem 1rem;box-shadow:var(--shadow-sm);margin-bottom:1rem;display:flex;flex-wrap:wrap;gap:9px;align-items:flex-end}
+.fg{display:flex;flex-direction:column;gap:4px;min-width:120px}
+.fg label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--gray-400)}
+.fg select,.fg input{border:1px solid var(--gray-200);border-radius:var(--radius-sm);padding:5px 8px;font-size:12.5px;color:var(--gray-800);background:var(--gray-50);outline:none;transition:border-color .15s;font-family:inherit}
+.fg select:focus,.fg input:focus{border-color:var(--k400);background:var(--white)}
+.btn-clr{padding:5px 12px;border:1px solid var(--gray-200);border-radius:var(--radius-sm);background:var(--gray-100);color:var(--gray-600);font-size:12.5px;cursor:pointer;font-weight:500;font-family:inherit;align-self:flex-end}
+.btn-clr:hover{background:var(--gray-200)}
+
+/* ── XLS buttons ── */
+.btn-excel{display:inline-flex;align-items:center;gap:5px;padding:5px 11px;border:1px solid #217346;border-radius:var(--radius-sm);background:#fff;color:#217346;font-size:11.5px;font-weight:700;cursor:pointer;transition:all .15s;font-family:inherit;white-space:nowrap}
+.btn-excel:hover{background:#217346;color:#fff}
+.btn-excel-import{border-color:var(--k600);color:var(--k600)}
+.btn-excel-import:hover{background:var(--k600);color:#fff}
+.xls-icon{width:13px;height:13px}.hidden-input{display:none}
+
+/* ── Table ── */
+.table-wrap{background:var(--white);border:1px solid var(--gray-200);border-radius:var(--radius-lg);box-shadow:var(--shadow-sm);overflow:hidden;margin-bottom:1.3rem}
+.table-hdr{display:flex;justify-content:space-between;align-items:center;padding:.65rem 1rem;border-bottom:1px solid var(--gray-200);gap:8px;flex-wrap:wrap}
+.table-hdr-left{display:flex;align-items:center;gap:7px}
+.co-pill{font-size:10.5px;padding:2px 9px;border-radius:12px;font-weight:700}
+.rec-cnt{font-size:11.5px;color:var(--gray-400);background:var(--gray-100);padding:2px 9px;border-radius:20px}
+.tbl-scroll{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+thead th{background:var(--k50);color:var(--k800);font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:7px 11px;text-align:left;border-bottom:1px solid var(--k100);white-space:nowrap}
+tbody tr{border-bottom:1px solid var(--gray-100);transition:background .1s}
+tbody tr.row-late{background:#fff8f8}
+tbody tr.row-late:hover{background:#fee2e2}
+tbody tr:hover{background:var(--k50)}
+tbody td{padding:8px 11px;color:var(--gray-800);vertical-align:middle}
+.td-ped{font-weight:600;color:var(--k600)}
+
+/* ── Status badges ── */
+.badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10.5px;font-weight:700;white-space:nowrap}
+.s-processado{background:#e8f7f0;color:#1a6a40}.s-aguardando{background:#fff4e0;color:#7a4f00}
+.s-coletado-a{background:#eaf0fb;color:#1a3a80}.s-coletado-s{background:#f0eafb;color:#5a1a8a}
+.s-miami{background:#fce8e8;color:#7a1a1a}
+.d-aguardando{background:#fff4e0;color:#7a4f00}.d-aprovado{background:#e8f7f0;color:#1a6a40}
+.d-problema{background:#fce8e8;color:#7a1a1a}
+.pill-vale{background:#e6f7ff;color:#0c5b8a;border:1px solid #b5d9f4}
+.pill-anglo-mr{background:#eaedfb;color:#1a3a80;border:1px solid #b5c5f4}
+.pill-anglo-ba{background:#f0eafb;color:#5a1a8a;border:1px solid #d4b5f4}
+.pill-samarco{background:#fef0e6;color:#8a3a0c;border:1px solid #f4c898}
+
+/* ── Inline status select ── */
+.status-select{border:1px solid var(--gray-200);border-radius:var(--radius-sm);padding:2px 6px;font-size:11px;color:var(--gray-800);background:var(--white);outline:none;cursor:pointer;font-family:inherit;transition:border-color .15s;max-width:200px}
+.status-select:focus{border-color:var(--k400)}
+/* read-only mode: hide selects, show delete buttons */
+body.client-mode .status-select{pointer-events:none;opacity:.6;cursor:default}
+body.client-mode .btn-del{display:none}
+body.client-mode .admin-only{display:none!important}
+body.client-mode .form-card.admin-form{opacity:.5;pointer-events:none}
+body.client-mode .form-card.admin-form::after{content:'🔒 Disponível apenas para administradores';position:absolute;inset:0;background:rgba(245,246,250,.88);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:var(--k800);border-radius:var(--radius-lg);z-index:5}
+
+/* ── Comments ── */
+.expand-btn{background:none;border:none;cursor:pointer;color:var(--gray-400);font-size:14px;padding:2px 4px;border-radius:3px;transition:color .15s;line-height:1}
+.expand-btn:hover{color:var(--k600)}
+.comment-box{width:100%;border:1px solid var(--gray-200);border-radius:var(--radius-sm);padding:6px 9px;font-size:12.5px;font-family:inherit;resize:vertical;min-height:52px;outline:none;background:var(--white);transition:border-color .15s}
+.comment-box:focus{border-color:var(--k400)}
+.comment-list{margin-bottom:7px;display:flex;flex-direction:column;gap:5px}
+.comment-item{background:var(--white);border:1px solid var(--gray-200);border-radius:var(--radius-sm);padding:6px 9px;font-size:12px}
+.comment-meta{font-size:10.5px;color:var(--gray-400);margin-top:2px}
+.btn-save-comment{padding:3px 11px;border:none;border-radius:var(--radius-sm);background:var(--k700);color:var(--white);font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;transition:background .15s;margin-top:5px}
+.btn-save-comment:hover{background:var(--k900)}
+.btn-del{background:none;border:none;color:var(--gray-400);cursor:pointer;padding:2px 5px;border-radius:4px;font-size:12.5px;transition:all .15s;line-height:1}
+.btn-del:hover{color:#c0392b;background:#fce8e8}
+.empty-state{text-align:center;padding:2.2rem 1rem;color:var(--gray-400);font-size:13px}
+
+/* ── Form ── */
+.form-card{background:var(--white);border:1px solid var(--gray-200);border-radius:var(--radius-lg);box-shadow:var(--shadow-sm);overflow:hidden;max-width:860px;margin:0 auto;position:relative}
+.form-card-hdr{background:var(--k50);padding:.85rem 1.3rem;border-bottom:1px solid var(--k100);display:flex;align-items:center;gap:8px}
+.form-card-hdr h2{font-size:14.5px;font-weight:700;color:var(--k800)}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px 20px;padding:1.25rem 1.3rem}
+@media(max-width:560px){.form-grid{grid-template-columns:1fr}}
+.field{display:flex;flex-direction:column;gap:4px}
+.field.full{grid-column:1/-1}
+.field label{font-size:11.5px;font-weight:700;color:var(--k600)}
+.field input,.field select{border:1.5px solid var(--gray-200);border-radius:var(--radius-sm);padding:7px 10px;font-size:13px;color:var(--gray-800);background:var(--white);outline:none;transition:all .15s;font-family:inherit}
+.field input:focus,.field select:focus{border-color:var(--k400);box-shadow:0 0 0 3px rgba(92,107,192,.10)}
+.field input.err,.field select.err{border-color:var(--coral)}
+.ferr{font-size:11px;color:#c0392b;display:none}.ferr.show{display:block}
+.form-footer{padding:.75rem 1.3rem 1.2rem;display:flex;gap:8px;justify-content:flex-end;border-top:1px solid var(--gray-100)}
+.btn-sec{padding:7px 17px;border:1.5px solid var(--gray-200);border-radius:var(--radius-sm);background:var(--white);color:var(--gray-600);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit}
+.btn-sec:hover{background:var(--gray-100)}
+.btn-pri{padding:7px 20px;border:none;border-radius:var(--radius-sm);background:var(--k700);color:var(--white);font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:5px}
+.btn-pri:hover{background:var(--k900)}
+.mina-row{display:none}.mina-row.show{display:flex;flex-direction:column;gap:4px}
+
+/* ── Embarque section layout ── */
+.embarque-top{display:grid;grid-template-columns:1fr 280px;gap:16px;align-items:start;margin-bottom:1.4rem}
+@media(max-width:960px){.embarque-top{grid-template-columns:1fr}}
+.embarque-form-wrap{max-width:100%;margin:0}
+
+/* ── MINI-DASH (docs side panel & generic) ── */
+.mini-dash{display:flex;flex-direction:column;gap:11px;position:sticky;top:70px}
+.mini-card{background:var(--white);border:1px solid var(--gray-200);border-radius:var(--radius-lg);padding:.95rem 1rem;box-shadow:var(--shadow-sm)}
+.mini-card-title{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--k600);margin-bottom:9px;padding-bottom:7px;border-bottom:1px solid var(--gray-100)}
+.mini-kpi-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.mini-kpi{background:var(--gray-50);border-radius:var(--radius-sm);padding:7px 8px;border:1px solid var(--gray-100)}
+.mini-kpi-lbl{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--gray-400);margin-bottom:2px}
+.mini-kpi-val{font-size:15px;font-weight:800;color:var(--k800)}
+.mini-stat-row{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--gray-100);font-size:12px}
+.mini-stat-row:last-child{border-bottom:none}
+.mini-stat-label{color:var(--gray-600);display:flex;align-items:center;gap:5px}
+.mini-stat-val{font-weight:700;color:var(--k800)}
+.mini-dot{width:7px;height:7px;border-radius:50%;display:inline-block;flex-shrink:0}
+.mini-bar-row{display:flex;align-items:center;gap:6px;margin-bottom:5px}
+.mini-bar-label{width:72px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--gray-600);font-size:10px;flex-shrink:0}
+.mini-bar-track{flex:1;background:var(--gray-100);border-radius:3px;height:9px;overflow:hidden}
+.mini-bar-fill{height:100%;border-radius:3px;transition:width .4s}
+.mini-bar-cnt{font-weight:700;color:var(--k800);min-width:60px;text-align:right;font-size:10px}
+
+/* ── Doc cards (no horizontal scroll) ── */
+.doc-cards-wrap{display:flex;flex-direction:column;gap:10px;margin-bottom:1.3rem}
+.doc-card{background:var(--white);border:1px solid var(--gray-200);border-radius:var(--radius-lg);box-shadow:var(--shadow-sm);overflow:hidden}
+.doc-card-hdr{display:flex;align-items:center;gap:14px;padding:.75rem 1rem;cursor:pointer;user-select:none;transition:background .12s;flex-wrap:wrap}
+.doc-card-hdr:hover{background:var(--k50)}
+.doc-card-pedido{font-weight:700;color:var(--k600);font-size:13.5px;min-width:120px}
+.doc-card-so{font-size:12.5px;color:var(--gray-600);min-width:100px}
+.doc-card-mina{font-size:12px;color:var(--gray-400);flex:1}
+.doc-card-valor{font-size:13px;font-weight:700;color:var(--k800);min-width:100px;text-align:right}
+.doc-card-chevron{color:var(--gray-400);font-size:12px;transition:transform .2s;flex-shrink:0}
+.doc-card-chevron.open{transform:rotate(180deg)}
+.doc-card-inline{display:flex;flex-direction:column;gap:1px;min-width:90px}
+.doc-card-inline-lbl{font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--gray-400)}
+.doc-card-inline-val{font-size:12.5px;color:var(--gray-800);font-weight:500;white-space:nowrap}
+.doc-card-body{display:none;padding:0 1rem 1rem;border-top:1px solid var(--gray-100)}
+.doc-card-body.open{display:block}
+.doc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px 16px;padding-top:.9rem}
+.doc-field{display:flex;flex-direction:column;gap:3px}
+.doc-field-lbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--gray-400)}
+.doc-field-val{font-size:13px;color:var(--gray-800);font-weight:500}
+.doc-card-footer{display:flex;align-items:center;justify-content:space-between;gap:10px;padding-top:.8rem;margin-top:.8rem;border-top:1px dashed var(--gray-200);flex-wrap:wrap}
+
+/* ── ALERTAS DE ATRASO ── */
+.alerts-banner{background:var(--white);border:1px solid var(--gray-200);border-radius:var(--radius-lg);box-shadow:var(--shadow-sm);margin-bottom:1rem;overflow:hidden}
+.alerts-banner-hdr{display:flex;align-items:center;justify-content:space-between;padding:.6rem 1rem;background:#fff8f0;border-bottom:1px solid #fde8cc;cursor:pointer;user-select:none}
+.alerts-banner-hdr-left{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;color:#7a3a00}
+.alerts-count{background:#e05a3a;color:#fff;font-size:10.5px;font-weight:700;padding:1px 7px;border-radius:12px}
+.alerts-count.amber{background:#e67e22}
+.alerts-body{padding:.75rem 1rem;display:none}
+.alerts-body.open{display:block}
+.alert-list{display:flex;flex-direction:column;gap:6px}
+.alert-item{display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:var(--radius-sm);border:1px solid transparent;font-size:12.5px}
+.alert-item.atrasado{background:#fef2f2;border-color:#fecaca}
+.alert-item.urgente{background:#fff7ed;border-color:#fed7aa}
+.alert-icon{font-size:15px;flex-shrink:0}
+.alert-text{flex:1}
+.alert-ped{font-weight:700;color:var(--k800)}
+.alert-detail{color:var(--gray-600);font-size:11.5px;margin-top:1px}
+.alert-badge{font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:12px;white-space:nowrap;flex-shrink:0}
+.alert-badge.red{background:#fee2e2;color:#991b1b}
+.alert-badge.amber{background:#fef3c7;color:#92400e}
+.row-alert{width:8px;height:8px;border-radius:50%;display:inline-block;flex-shrink:0;margin-right:3px;vertical-align:middle}
+.row-alert.red{background:#e05a3a}.row-alert.amber{background:#e67e22}
+
+/* ── TIMELINE ── */
+.timeline-row td{padding:0!important}
+.timeline-wrap{padding:12px 16px 14px;background:linear-gradient(to bottom,var(--k50),var(--white));border-top:1px solid var(--k100)}
+.timeline-title{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--k600);margin-bottom:12px;display:flex;align-items:center;gap:6px}
+.timeline{display:flex;align-items:flex-start;position:relative;overflow-x:auto;padding-bottom:4px}
+.tl-step{display:flex;flex-direction:column;align-items:center;flex:1;min-width:88px;position:relative}
+.tl-step:not(:last-child)::after{content:'';position:absolute;top:13px;left:calc(50% + 14px);right:calc(-50% + 14px);height:2px;background:var(--gray-200);z-index:0}
+.tl-step.done:not(:last-child)::after{background:var(--k400)}
+.tl-step.active:not(:last-child)::after{background:linear-gradient(to right,var(--k400) 0%,var(--gray-200) 100%)}
+.tl-dot{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;z-index:1;position:relative;flex-shrink:0;border:2px solid var(--gray-200);background:var(--white);transition:all .2s}
+.tl-step.done .tl-dot{background:var(--k600);border-color:var(--k600);color:#fff}
+.tl-step.active .tl-dot{background:var(--white);border-color:var(--k400);box-shadow:0 0 0 4px rgba(92,107,192,.15)}
+.tl-step.late .tl-dot{background:#fee2e2;border-color:#e05a3a;color:#991b1b}
+.tl-label{font-size:9px;font-weight:600;color:var(--gray-400);text-align:center;margin-top:5px;line-height:1.3;max-width:80px}
+.tl-step.done .tl-label{color:var(--k600);font-weight:700}
+.tl-step.active .tl-label{color:var(--k800);font-weight:700}
+.tl-step.late .tl-label{color:#991b1b;font-weight:700}
+.tl-date{font-size:8.5px;color:var(--gray-400);text-align:center;margin-top:2px}
+.tl-step.active .tl-date,.tl-step.done .tl-date{color:var(--gray-600)}
+.tl-btn{background:none;border:none;cursor:pointer;padding:2px 5px;border-radius:3px;color:var(--gray-400);transition:color .15s;line-height:1;font-size:13px}
+.tl-btn:hover{color:var(--k600)}
+
+/* ── Inline editable fields in pedidos table (admin) ── */
+.inline-edit{border:1px solid var(--gray-200);border-radius:var(--radius-sm);padding:3px 7px;font-size:12.5px;color:var(--gray-800);background:var(--white);outline:none;font-family:inherit;transition:border-color .15s,box-shadow .15s;width:100%;min-width:90px}
+.inline-edit:hover{border-color:var(--k200)}
+.inline-edit:focus{border-color:var(--k400);box-shadow:0 0 0 2px rgba(92,107,192,.12)}
+input[type="date"].inline-edit{min-width:120px}
+input[type="number"].inline-edit{min-width:90px}
+
+/* ── Relatorios ── */
+.rel-filter-card{background:var(--white);border:1px solid var(--gray-200);border-radius:var(--radius-lg);box-shadow:var(--shadow-sm);padding:.9rem 1.1rem;margin-bottom:1.1rem}
+.rel-kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:1.1rem}
+.rel-export-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:1.2rem;padding:.75rem 1rem;background:var(--white);border:1px solid var(--gray-200);border-radius:var(--radius-md);box-shadow:var(--shadow-sm)}
+.notif-card{background:var(--white);border:1px solid var(--gray-200);border-radius:var(--radius-lg);box-shadow:var(--shadow-sm);padding:1rem 1.2rem;margin-bottom:1.2rem}
+.notif-item{display:flex;align-items:flex-start;gap:10px;padding:8px 10px;border-radius:var(--radius-sm);border:1px solid transparent;font-size:12.5px;margin-bottom:6px}
+.notif-item.red{background:#fef2f2;border-color:#fecaca}
+.notif-item.amber{background:#fff7ed;border-color:#fed7aa}
+.notif-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:3px}
+.notif-dot.red{background:#e05a3a}.notif-dot.amber{background:#e67e22}
+.notif-txt{flex:1;color:var(--gray-800)}
+.notif-badge{font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:12px;white-space:nowrap}
+.notif-badge.red{background:#fee2e2;color:#991b1b}
+.notif-badge.amber{background:#fef3c7;color:#92400e}
+.notif-whatsapp{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;padding:2px 9px;border-radius:10px;background:#dcfce7;color:#166534;text-decoration:none;cursor:pointer;border:1px solid #bbf7d0;margin-left:6px;transition:all .15s}
+.notif-whatsapp:hover{background:#166534;color:#fff}
+.hist-field-pill{display:inline-block;font-size:10.5px;font-weight:700;padding:1px 7px;border-radius:10px;background:var(--k50);color:var(--k600);margin-right:3px}
+/* Tracking */
+.trk-card{background:var(--white);border:1px solid var(--gray-200);border-radius:var(--radius-lg);box-shadow:var(--shadow-sm);margin-bottom:10px;overflow:hidden}
+.trk-card-hdr{display:flex;align-items:center;gap:10px;padding:.7rem 1rem;background:var(--gray-50);border-bottom:1px solid var(--gray-200);flex-wrap:wrap}
+.trk-pedido{font-weight:700;color:var(--k600);font-size:13.5px}
+.trk-carrier{font-size:12px;color:var(--gray-600)}
+.trk-num{font-size:12px;font-weight:600;color:var(--k800);background:var(--k50);padding:2px 8px;border-radius:var(--radius-sm)}
+.trk-body{padding:.8rem 1rem;display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:9px}
+.trk-field{display:flex;flex-direction:column;gap:3px}
+.trk-field-lbl{font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--gray-400)}
+.trk-field-val{font-size:12.5px;color:var(--gray-800);font-weight:500}
+.trk-link{font-size:11.5px;color:var(--k600);text-decoration:none;font-weight:600}
+.trk-link:hover{text-decoration:underline}
+.trk-actions{display:flex;gap:6px;padding:.5rem 1rem .7rem;border-top:1px solid var(--gray-100);flex-wrap:wrap}
+.trk-badge{font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:12px}
+.trk-aereo{background:#e8eaf6;color:var(--k800)}
+.trk-maritimo{background:#e0f2fe;color:#075985}
+.trk-rodoviario{background:#fef9c3;color:#713f12}
+.trk-aguardando{background:#f3f4f6;color:#374151}
+.trk-transito{background:#dbeafe;color:#1e40af}
+.trk-alfandega{background:#fef9c3;color:#713f12}
+.trk-saiu{background:#d1fae5;color:#065f46}
+.trk-entregue{background:#dcfce7;color:#166534}
+.trk-problema{background:#fee2e2;color:#991b1b}
+
+/* ── Floating Save Changes Button (admin) ── */
+.save-changes-btn{position:fixed;bottom:1.5rem;left:1.5rem;display:flex;align-items:center;gap:8px;background:var(--green);color:#fff;border:none;padding:11px 20px;border-radius:30px;font-size:13.5px;font-weight:700;cursor:pointer;box-shadow:0 4px 16px rgba(39,174,96,.35);transition:all .15s;z-index:998;font-family:inherit}
+.save-changes-btn:hover{background:#219150;transform:translateY(-2px);box-shadow:0 6px 20px rgba(39,174,96,.45)}
+.save-changes-btn:active{transform:translateY(0)}
+.save-changes-btn.saved{background:var(--k700)}
+
+/* ══ KANBAN ══════════════════════════════════════════════════════════════ */
+.kb-board-tabs{display:flex;gap:8px;margin-bottom:1.2rem}
+.kb-board-tab{padding:7px 20px;border:1.5px solid var(--gray-200);border-radius:20px;background:var(--white);color:var(--gray-600);font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;font-family:inherit}
+.kb-board-tab:hover{border-color:var(--k200);color:var(--k600)}
+.kb-board-tab.active{background:var(--k700);border-color:var(--k700);color:var(--white)}
+
+/* Add form */
+.kb-add-form{background:var(--white);border:1px solid var(--gray-200);border-radius:var(--radius-lg);padding:1.1rem 1.25rem 1rem;box-shadow:var(--shadow-sm);margin-bottom:1.1rem}
+.kb-add-form-title{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--k600);margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--gray-100)}
+.kb-add-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px 14px}
+@media(max-width:600px){.kb-add-form-grid{grid-template-columns:1fr}}
+.kb-form-lbl{font-size:11px;font-weight:700;color:var(--gray-400);text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:4px}
+.kb-new-input{width:100%;border:1.5px solid var(--gray-200);border-radius:var(--radius-sm);padding:7px 10px;font-size:13px;color:var(--gray-800);outline:none;font-family:inherit;transition:border-color .15s;background:var(--white)}
+.kb-new-input:focus{border-color:var(--k400);box-shadow:0 0 0 3px rgba(92,107,192,.1)}
+.kb-new-select{width:100%;border:1.5px solid var(--gray-200);border-radius:var(--radius-sm);padding:6px 8px;font-size:12.5px;color:var(--gray-800);outline:none;background:var(--gray-50);font-family:inherit;cursor:pointer}
+.kb-new-select:focus{border-color:var(--k400)}
+
+/* Columns */
+.kb-columns{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;align-items:start}
+@media(max-width:760px){.kb-columns{grid-template-columns:1fr}}
+.kb-col{background:var(--gray-50);border:1px solid var(--gray-200);border-radius:var(--radius-lg);overflow:hidden;min-height:300px;display:flex;flex-direction:column}
+.kb-col-hdr{display:flex;align-items:center;justify-content:space-between;padding:.6rem .9rem;font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.06em}
+.kb-col-fazer{background:#e8eaf6;color:var(--k800);border-bottom:2px solid var(--k200)}
+.kb-col-fazendo{background:#fff8e8;color:#7a4f00;border-bottom:2px solid #fde8aa}
+.kb-col-feito{background:#eafaf0;color:#1a5a30;border-bottom:2px solid #a8e6c0}
+.kb-cnt{background:rgba(0,0,0,.12);color:inherit;padding:1px 7px;border-radius:12px;font-size:10.5px}
+.kb-archive-dl{font-size:10px;font-weight:600;padding:2px 8px;border-radius:10px;border:1px solid #a8e6c0;background:var(--white);color:#1a5a30;cursor:pointer;font-family:inherit;transition:all .15s}
+.kb-archive-dl:hover{background:#1a5a30;color:var(--white)}
+
+.kb-cards{flex:1;padding:.6rem .7rem;display:flex;flex-direction:column;gap:8px;min-height:240px}
+.kb-cards.drag-over{background:rgba(92,107,192,.07)}
+
+/* Blue card — Modular brand color */
+.kb-card{background:linear-gradient(135deg,var(--k800) 0%,var(--k700) 100%);border:1px solid var(--k600);border-radius:var(--radius-md);padding:.8rem .95rem;box-shadow:0 2px 8px rgba(13,21,102,.18);cursor:grab;transition:box-shadow .15s,transform .1s;position:relative;user-select:none}
+.kb-card:hover{box-shadow:0 4px 16px rgba(13,21,102,.28);transform:translateY(-1px)}
+.kb-card.dragging{opacity:.45;cursor:grabbing}
+.kb-card-top{display:flex;align-items:flex-start;justify-content:space-between;gap:6px;margin-bottom:6px}
+.kb-card-title{font-size:13px;font-weight:600;color:var(--white);line-height:1.35;flex:1}
+.kb-card-serial{font-size:10px;color:rgba(255,255,255,.6);margin-bottom:3px;font-weight:500}
+.kb-card-meta{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:5px}
+.kb-card-resp{font-size:11px;color:rgba(255,255,255,.8);background:rgba(255,255,255,.15);padding:2px 8px;border-radius:10px;font-weight:500}
+.kb-card-prio{font-size:10px;padding:2px 8px;border-radius:10px;font-weight:700}
+.kb-card-prio.urgente{background:#fee2e2;color:#991b1b}
+.kb-card-prio.alta{background:#fef9c3;color:#713f12}
+.kb-card-prio.normal{background:rgba(255,255,255,.18);color:rgba(255,255,255,.9)}
+.kb-card-date{font-size:9.5px;color:rgba(255,255,255,.5);margin-top:3px}
+.kb-card-notes{font-size:11px;color:rgba(255,255,255,.7);margin-top:4px;font-style:italic;line-height:1.35;border-top:1px solid rgba(255,255,255,.12);padding-top:5px}
+.kb-card-actions{display:flex;gap:4px;flex-shrink:0}
+.kb-act-btn{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);cursor:pointer;font-size:11px;padding:3px 8px;border-radius:4px;color:rgba(255,255,255,.85);transition:all .15s;line-height:1;font-family:inherit;font-weight:600}
+.kb-act-btn:hover{background:rgba(255,255,255,.3);color:var(--white)}
+.kb-act-btn.del:hover{background:#e05a3a;border-color:#e05a3a;color:var(--white)}
+
+/* Move buttons */
+.kb-move-bar{display:flex;gap:4px;margin-top:8px;padding-top:7px;border-top:1px solid rgba(255,255,255,.15)}
+.kb-move-btn{flex:1;font-size:10.5px;font-weight:600;padding:4px 6px;border-radius:4px;border:1px solid rgba(255,255,255,.3);background:rgba(255,255,255,.12);color:rgba(255,255,255,.9);cursor:pointer;transition:all .15s;font-family:inherit;text-align:center}
+.kb-move-btn:hover{background:rgba(255,255,255,.3);color:var(--white)}
+
+/* Progress bar (Fazendo column) */
+.kb-progress-wrap{margin-top:8px;padding-top:7px;border-top:1px solid rgba(255,255,255,.15)}
+.kb-progress-lbl{display:flex;justify-content:space-between;align-items:center;margin-bottom:5px}
+.kb-progress-txt{font-size:10px;font-weight:600;color:rgba(255,255,255,.7);text-transform:uppercase;letter-spacing:.05em}
+.kb-progress-pct{font-size:11px;font-weight:700;color:var(--white)}
+.kb-progress-track{background:rgba(255,255,255,.2);border-radius:4px;height:8px;overflow:hidden;cursor:pointer;position:relative}
+.kb-progress-fill{height:100%;border-radius:4px;background:linear-gradient(to right,#a8e6c0,#27ae60);transition:width .3s}
+.kb-progress-input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;margin:0}
+
+/* Done — history + archive */
+.kb-hist{margin-top:8px;padding-top:7px;border-top:1px solid rgba(255,255,255,.15)}
+.kb-hist-title{font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:rgba(255,255,255,.6);margin-bottom:6px}
+.kb-hist-tl{display:flex;flex-direction:column;gap:4px}
+.kb-hist-item{display:flex;align-items:flex-start;gap:6px;font-size:11px;color:rgba(255,255,255,.75)}
+.kb-hist-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;margin-top:3px}
+.kb-hist-dot.fazer{background:rgba(255,255,255,.4)}.kb-hist-dot.fazendo{background:#f0a500}.kb-hist-dot.feito{background:#27ae60}
+.kb-hist-txt{line-height:1.4}
+.kb-hist-ts{font-size:9.5px;color:rgba(255,255,255,.45);display:block}
+.kb-archive-btn{width:100%;margin-top:8px;padding:5px 0;font-size:11px;font-weight:700;border:1px solid rgba(255,255,255,.3);border-radius:4px;background:rgba(39,174,96,.25);color:#a8e6c0;cursor:pointer;font-family:inherit;transition:all .15s;text-align:center}
+.kb-archive-btn:hover{background:rgba(39,174,96,.5);color:var(--white)}
+
+/* Top row: form half + calendar half */
+.kb-top-row{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:1.2rem;align-items:start}
+@media(max-width:900px){.kb-top-row{grid-template-columns:1fr}}
+.kb-form-half{display:flex;flex-direction:column}
+
+/* Calendar */
+.kb-cal-wrap{background:var(--white);border:1px solid var(--gray-200);border-radius:var(--radius-lg);box-shadow:var(--shadow-sm);padding:.85rem 1rem;user-select:none}
+.kb-cal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.kb-cal-month-lbl{font-size:14px;font-weight:700;color:var(--k800);letter-spacing:.01em}
+.kb-cal-nav{background:none;border:1px solid var(--gray-200);border-radius:var(--radius-sm);width:28px;height:28px;font-size:18px;cursor:pointer;color:var(--k600);display:flex;align-items:center;justify-content:center;transition:all .15s;line-height:1}
+.kb-cal-nav:hover{background:var(--k50);border-color:var(--k200)}
+.kb-cal-weekdays{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:4px}
+.kb-cal-weekdays span{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--gray-400);text-align:center;padding:3px 0}
+.kb-cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
+.kb-cal-day{background:var(--gray-50);border:1px solid var(--gray-200);border-radius:var(--radius-sm);min-height:54px;padding:4px 5px;cursor:pointer;transition:all .15s;position:relative;display:flex;flex-direction:column}
+.kb-cal-day:hover{background:var(--k50);border-color:var(--k200)}
+.kb-cal-day.today{border-color:var(--k400);background:var(--k50)}
+.kb-cal-day.today .kb-cal-day-num{color:var(--k700);font-weight:800}
+.kb-cal-day.other-month{opacity:.35}
+.kb-cal-day.has-notes{border-color:var(--k400)}
+.kb-cal-day-num{font-size:11.5px;font-weight:600;color:var(--gray-800);line-height:1;flex-shrink:0}
+.kb-cal-day.today .kb-cal-day-num::after{content:'';display:inline-block;width:5px;height:5px;background:var(--k600);border-radius:50%;margin-left:3px;vertical-align:middle}
+.kb-cal-day-notes-preview{flex:1;overflow:hidden;margin-top:3px}
+.kb-cal-note-dot{font-size:9.5px;color:var(--k600);line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
+.kb-cal-more{font-size:8.5px;color:var(--gray-400);font-weight:600}
+.kb-cal-notif-badge{position:absolute;top:3px;right:4px;background:var(--k600);color:#fff;font-size:8.5px;font-weight:700;padding:0px 4px;border-radius:8px;line-height:16px;min-width:14px;text-align:center}
+
+/* Day note popup */
+.kb-day-overlay{position:fixed;inset:0;background:rgba(8,14,74,.5);z-index:700;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(2px)}
+.kb-day-overlay.hidden{display:none}
+.kb-day-box{background:var(--white);border-radius:var(--radius-lg);box-shadow:0 8px 40px rgba(8,14,74,.25);width:420px;max-width:93vw;padding:1.5rem;max-height:85vh;overflow-y:auto}
+.kb-day-title{font-size:15px;font-weight:700;color:var(--k800);margin-bottom:.85rem;padding-bottom:.6rem;border-bottom:1px solid var(--gray-100)}
+.kb-day-notes-list{display:flex;flex-direction:column;gap:7px;margin-bottom:4px}
+.kb-day-note-item{background:var(--k50);border:1px solid var(--k100);border-radius:var(--radius-sm);padding:7px 10px;display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
+.kb-day-note-text{font-size:12.5px;color:var(--gray-800);line-height:1.45;flex:1}
+.kb-day-note-del{background:none;border:none;cursor:pointer;color:var(--gray-400);font-size:12px;padding:1px 4px;border-radius:3px;transition:all .15s;flex-shrink:0}
+.kb-day-note-del:hover{color:#c0392b;background:#fce8e8}
+.kb-day-empty{font-size:12.5px;color:var(--gray-400);font-style:italic;padding:6px 0}
+
+/* Edit popup */
+.kb-note-overlay{position:fixed;inset:0;background:rgba(8,14,74,.5);z-index:600;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(2px)}
+.kb-note-overlay.hidden{display:none}
+.kb-note-box{background:var(--white);border-radius:var(--radius-lg);box-shadow:0 8px 40px rgba(8,14,74,.25);width:460px;max-width:93vw;padding:1.5rem}
+.kb-note-title{font-size:14px;font-weight:700;color:var(--k800);margin-bottom:1rem;padding-bottom:.6rem;border-bottom:1px solid var(--gray-100)}
+.kb-note-textarea{width:100%;border:1.5px solid var(--gray-200);border-radius:var(--radius-sm);padding:8px 10px;font-size:13px;font-family:inherit;resize:vertical;min-height:80px;outline:none;color:var(--gray-800);transition:border-color .15s}
+.kb-note-textarea:focus{border-color:var(--k400)}
+.kb-note-footer{display:flex;gap:8px;justify-content:flex-end;margin-top:1rem}
+
+/* ── Toast ── */
+.toast{position:fixed;bottom:1.5rem;right:1.5rem;background:var(--k800);color:var(--white);padding:10px 16px;border-radius:var(--radius-md);font-size:13px;font-weight:500;box-shadow:var(--shadow-md);opacity:0;transform:translateY(8px);pointer-events:none;transition:opacity .25s,transform .25s;z-index:999}
+.toast.show{opacity:1;transform:translateY(0)}
+</style>
+</head>
+<body>
+
+<!-- ═══ LOADER ═══ -->
+<div id="loader">
+  <div class="ld-logo">MODULAR — KOMATSU</div>
+  <div class="ld-bar"><div class="ld-bar-inner"></div></div>
+  <div class="ld-txt">Carregando sistema…</div>
+</div>
+
+<!-- ═══ LOGIN SCREEN ═══ -->
+<div id="login-screen">
+  <div class="ls-card">
+    <div class="ls-top">
+      <div class="ls-brand">MODULAR — KOMATSU</div>
+      <div class="ls-brand-sub">GESTÃO DE PEDIDOS</div>
+    </div>
+    <div class="ls-body">
+      <div class="ls-title">Bem-vindo</div>
+      <div class="ls-sub">Selecione seu perfil de acesso</div>
+      <div class="role-cards">
+        <div class="role-card" id="rc-admin" onclick="selectRole('admin')">
+          <div class="role-icon">🔐</div>
+          <div class="role-name">Administrador</div>
+          <div class="role-desc">Editar e adicionar dados</div>
+        </div>
+        <div class="role-card" id="rc-cliente" onclick="selectRole('cliente')">
+          <div class="role-icon">👁️</div>
+          <div class="role-name">Cliente</div>
+          <div class="role-desc">Visualizar informações</div>
+        </div>
+      </div>
+      <div class="ls-field">
+        <label for="ls-user">Usuário</label>
+        <input type="text" id="ls-user" placeholder="Digite seu usuário" autocomplete="username"/>
+      </div>
+      <div class="ls-field">
+        <label for="ls-pass">Senha</label>
+        <input type="password" id="ls-pass" placeholder="Digite sua senha" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()"/>
+      </div>
+      <div class="ls-err" id="ls-err">Usuário ou senha incorretos.</div>
+      <button class="ls-btn" onclick="doLogin()">Entrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ HEADER ═══ -->
+<header>
+  <div class="logo">
+    <span class="logo-modular">MODULAR</span>
+    <span class="logo-sep">—</span>
+    <span class="logo-komatsu">KOMATSU</span>
+  </div>
+  <nav>
+    <button class="active admin-only" onclick="showSection('dashboard')" style="display:none">Dashboard</button>
+    <button onclick="showSection('pedidos')">Pedidos</button>
+    <button onclick="showSection('embarque')">Docs de Embarque</button>
+    <button class="admin-only" onclick="showSection('relatorios')" style="display:none">Relatorios</button>
+    <button onclick="showSection('tracking')">Tracking</button>
+    <button class="admin-only" onclick="showSection('kanban')" style="display:none">Kanban</button>
+  </nav>
+  <div class="hdr-right">
+    <span class="hdr-role" id="hdr-role-badge"></span>
+    <button class="btn-logout" onclick="doLogout()">Sair</button>
+  </div>
+</header>
+
+<main>
+
+<!-- ══════ DASHBOARD ══════ -->
+<div id="section-dashboard" class="section visible">
+  <div class="page-hd"><h1>Visão Geral</h1><p>Resumo consolidado de pedidos por empresa e mina</p></div>
+
+  <!-- KPIs -->
+  <div class="kpi-row" id="kpi-row"></div>
+
+  <!-- Filter card -->
+  <div class="dash-filter-card">
+    <div class="dash-filter-title">Filtros do Dashboard</div>
+    <div class="dash-filter-row">
+      <div class="fg">
+        <label>Empresa</label>
+        <select id="df-empresa" onchange="renderDashboard()">
+          <option value="all">Todas</option>
+          <option>Vale</option>
+          <option>Anglo Minas Rio</option>
+          <option>Anglo Barro Alto</option>
+          <option>Samarco</option>
+        </select>
+      </div>
+      <div class="fg" id="df-mina-fg">
+        <label>Mina</label>
+        <select id="df-mina" onchange="renderDashboard()">
+          <option value="all">Todas</option>
+        </select>
+      </div>
+      <div class="fg">
+        <label>Status</label>
+        <select id="df-status-dash" onchange="renderDashboard()">
+          <option value="all">Todos</option>
+          <option>Pedido Processado</option>
+          <option>Aguardando documentação de embarque</option>
+          <option>Pedido coletado - Anglo</option>
+          <option>Pedido coletado - Samarco</option>
+          <option>Pedido enviado para Miami</option>
+        </select>
+      </div>
+      <div class="fg">
+        <label>Periodo de</label>
+        <input type="date" id="df-from" onchange="renderDashboard()"/>
+      </div>
+      <div class="fg">
+        <label>Periodo ate</label>
+        <input type="date" id="df-to" onchange="renderDashboard()"/>
+      </div>
+      <button class="btn-clr" onclick="clearDashFilters()">Limpar</button>
+    </div>
+  </div>
+
+  <!-- 4 charts in a single equal row -->
+  <div class="dash-charts-row">
+    <div class="dash-chart-card">
+      <div class="dash-chart-title">Pedidos por Status</div>
+      <div class="dash-chart-body"><canvas id="chartStatus"></canvas></div>
+    </div>
+    <div class="dash-chart-card">
+      <div class="dash-chart-title">Pedidos por Empresa</div>
+      <div class="dash-chart-body"><canvas id="chartEmpresa"></canvas></div>
+    </div>
+    <div class="dash-chart-card">
+      <div class="dash-chart-title">Pedidos por Mina</div>
+      <div class="dash-chart-body"><canvas id="chartMina"></canvas></div>
+    </div>
+    <div class="dash-chart-card">
+      <div class="dash-chart-title">Valor por Mes (USD)</div>
+      <div class="dash-chart-body"><canvas id="chartMes"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════ PEDIDOS ══════ -->
+<div id="section-pedidos" class="section">
+  <div class="page-hd"><h1>Pedidos</h1><p>Agrupados por empresa, do mais recente ao mais antigo</p></div>
+
+  <!-- TOP: form (left) + mini-dash (right), admin only -->
+  <div class="embarque-top admin-only" id="ped-form-row" style="display:none">
+    <div class="embarque-form-wrap">
+      <div class="form-card admin-form">
+        <div class="form-card-hdr">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--k600)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          <h2>Novo Pedido</h2>
+        </div>
+        <div class="form-grid" style="grid-template-columns:repeat(3,1fr)">
+          <div class="field">
+            <label for="fp-empresa">Empresa *</label>
+            <select id="fp-empresa" onchange="toggleMina('fp-empresa','fp-mina','mina-field-ped','err-mina')">
+              <option value="">Selecione…</option>
+              <option>Vale</option><option>Anglo Minas Rio</option>
+              <option>Anglo Barro Alto</option><option>Samarco</option>
+            </select>
+            <span class="ferr" id="err-empresa">Selecione uma empresa</span>
+          </div>
+          <div class="field mina-row" id="mina-field-ped">
+            <label for="fp-mina">Mina *</label>
+            <select id="fp-mina"><option value="">Selecione…</option></select>
+            <span class="ferr" id="err-mina">Selecione a mina</span>
+          </div>
+          <div class="field">
+            <label for="fp-pedido">Pedido *</label>
+            <input type="text" id="fp-pedido" placeholder="Ex: PED-2024-001"/>
+            <span class="ferr" id="err-pedido">Campo obrigatório</span>
+          </div>
+          <div class="field">
+            <label for="fp-so">SO *</label>
+            <input type="text" id="fp-so" placeholder="Ex: SO-00123"/>
+            <span class="ferr" id="err-so">Campo obrigatório</span>
+          </div>
+          <div class="field">
+            <label for="fp-valor">Valor (USD $) *</label>
+            <input type="number" id="fp-valor" placeholder="0.00" min="0" step="0.01"/>
+            <span class="ferr" id="err-valor">Informe um valor válido</span>
+          </div>
+          <div class="field">
+            <label for="fp-status">Status *</label>
+            <select id="fp-status">
+              <option value="">Selecione…</option>
+              <option>Pedido Processado</option>
+              <option>Aguardando documentação de embarque</option>
+              <option>Pedido coletado - Anglo</option>
+              <option>Pedido coletado - Samarco</option>
+              <option>Pedido enviado para Miami</option>
+            </select>
+            <span class="ferr" id="err-status">Selecione um status</span>
+          </div>
+          <div class="field">
+            <label for="fp-criado">Criado em *</label>
+            <input type="date" id="fp-criado"/>
+            <span class="ferr" id="err-criado">Campo obrigatório</span>
+          </div>
+          <div class="field">
+            <label for="fp-previsao">Previsão do pedido</label>
+            <input type="date" id="fp-previsao"/>
+          </div>
+        </div>
+        <div class="form-footer">
+          <button class="btn-sec" onclick="resetForm()">Limpar</button>
+          <button class="btn-pri" onclick="submitForm()">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            Salvar Pedido
+          </button>
+        </div>
+      </div>
+    </div>
+    <!-- MINI-DASH right side -->
+    <div class="mini-dash" id="ped-side-minidash"></div>
+  </div>
+
+  <!-- ── ALERTAS DE ATRASO ── -->
+  <div class="alerts-banner" id="alerts-banner" style="display:none">
+    <div class="alerts-banner-hdr" onclick="toggleAlerts()">
+      <div class="alerts-banner-hdr-left">
+        <span>⚠️ Alertas de Prazo</span>
+        <span class="alerts-count" id="alerts-count">0</span>
+      </div>
+      <span style="font-size:11px;color:#7a3a00;font-weight:600" id="alerts-toggle-lbl">Ver detalhes ▼</span>
+    </div>
+    <div class="alerts-body" id="alerts-body">
+      <div class="alert-list" id="alert-list"></div>
+    </div>
+  </div>
+
+  <!-- Company tabs -->
+  <div class="company-tabs">
+    <button class="ctab active" onclick="setCoTab('all',this)">Todas</button>
+    <button class="ctab" onclick="setCoTab('Vale',this)">Vale</button>
+    <button class="ctab" onclick="setCoTab('Anglo Minas Rio',this)">Anglo Minas Rio</button>
+    <button class="ctab" onclick="setCoTab('Anglo Barro Alto',this)">Anglo Barro Alto</button>
+    <button class="ctab" onclick="setCoTab('Samarco',this)">Samarco</button>
+  </div>
+
+  <!-- Filters -->
+  <div class="filters-bar">
+    <div class="fg"><label>Busca</label><input type="text" id="f-search" placeholder="Pedido, SO, Mina…" oninput="renderPedidos()"/></div>
+    <div class="fg"><label>Status</label>
+      <select id="f-status" onchange="renderPedidos()">
+        <option value="">Todos</option>
+        <option>Pedido Processado</option>
+        <option>Aguardando documentação de embarque</option>
+        <option>Pedido coletado - Anglo</option>
+        <option>Pedido coletado - Samarco</option>
+        <option>Pedido enviado para Miami</option>
+      </select>
+    </div>
+    <div class="fg"><label>Criado de</label><input type="date" id="f-date-from" onchange="renderPedidos()"/></div>
+    <div class="fg"><label>Criado até</label><input type="date" id="f-date-to" onchange="renderPedidos()"/></div>
+    <div class="fg"><label>Ordenar por</label>
+      <select id="f-sort" onchange="renderPedidos()">
+        <option value="criado-desc">Criado em (recente → antigo)</option>
+        <option value="criado-asc">Criado em (antigo → recente)</option>
+        <option value="previsao-asc">Previsão (mais próxima)</option>
+        <option value="previsao-desc">Previsão (mais distante)</option>
+        <option value="az">Pedido (A → Z)</option>
+        <option value="za">Pedido (Z → A)</option>
+        <option value="valor-desc">Valor (maior → menor)</option>
+        <option value="valor-asc">Valor (menor → maior)</option>
+      </select>
+    </div>
+    <button class="btn-clr" onclick="clearFilters()">Limpar</button>
+    <div style="margin-left:auto;display:flex;gap:6px;align-items:flex-end">
+      <button class="btn-excel btn-excel-import admin-only" onclick="document.getElementById('import-pedidos').click()" style="display:none">
+        <svg class="xls-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        Importar XLS
+      </button>
+      <input type="file" id="import-pedidos" class="hidden-input" accept=".xlsx,.xls,.csv" onchange="importPedidosXLS(event)"/>
+      <button class="btn-excel" onclick="exportPedidosXLS()">
+        <svg class="xls-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Exportar XLS
+      </button>
+    </div>
+  </div>
+
+  <!-- Tables grouped by company -->
+  <div id="pedidos-container"></div>
+</div>
+
+<!-- ══════ DOCS DE EMBARQUE ══════ -->
+<div id="section-embarque" class="section">
+  <div class="page-hd"><h1>Documentos de Embarque</h1><p>Controle de documentação por empresa</p></div>
+
+  <!-- TOP: form (left) + mini-dash (right) -->
+  <div class="embarque-top">
+    <div class="embarque-form-wrap">
+      <div class="form-card admin-form">
+        <div class="form-card-hdr">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--k600)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          <h2>Novo Documento</h2>
+        </div>
+        <div class="form-grid" style="grid-template-columns:repeat(3,1fr)">
+          <div class="field"><label for="fd-empresa">Empresa *</label>
+            <select id="fd-empresa" onchange="toggleMina('fd-empresa','fd-mina','mina-field-doc','')">
+              <option value="">Selecione…</option>
+              <option>Vale</option><option>Anglo Minas Rio</option>
+              <option>Anglo Barro Alto</option><option>Samarco</option>
+            </select>
+            <span class="ferr" id="derr-empresa">Campo obrigatório</span>
+          </div>
+          <div class="field mina-row" id="mina-field-doc">
+            <label for="fd-mina">Mina</label>
+            <select id="fd-mina"><option value="">Selecione…</option></select>
+          </div>
+          <div class="field"><label for="fd-pedido">Pedido *</label>
+            <input type="text" id="fd-pedido" placeholder="PED-2024-001"/>
+            <span class="ferr" id="derr-pedido">Campo obrigatório</span>
+          </div>
+          <div class="field"><label for="fd-so">SO *</label>
+            <input type="text" id="fd-so" placeholder="SO-00123"/>
+            <span class="ferr" id="derr-so">Campo obrigatório</span>
+          </div>
+          <div class="field"><label for="fd-valor">Valor (USD $)</label>
+            <input type="number" id="fd-valor" placeholder="0.00" min="0" step="0.01"/>
+          </div>
+          <div class="field"><label for="fd-status">Status *</label>
+            <select id="fd-status">
+              <option value="">Selecione…</option>
+              <option>Pedido aguardando aprovação de documentação de embarque</option>
+              <option>Pedido aprovado</option>
+              <option>Pedido com Problemas</option>
+            </select>
+            <span class="ferr" id="derr-status">Selecione um status</span>
+          </div>
+          <div class="field"><label for="fd-enviado">Enviado em</label><input type="date" id="fd-enviado"/></div>
+          <div class="field"><label for="fd-aprovado">Aprovado em</label><input type="date" id="fd-aprovado"/></div>
+          <div class="field"><label for="fd-comm-invoice">Commercial Invoice</label><input type="text" id="fd-comm-invoice" placeholder="Nº CI"/></div>
+          <div class="field"><label for="fd-pay-invoice">Payment Invoice</label><input type="text" id="fd-pay-invoice" placeholder="Nº PI"/></div>
+          <div class="field"><label for="fd-dt-pagamento">Data Est. Pagamento</label><input type="date" id="fd-dt-pagamento"/></div>
+          <div class="field"><label for="fd-frete-por">Frete Realizado por</label>
+            <select id="fd-frete-por"><option value="">Selecione…</option><option>DMS</option><option>Login</option></select>
+          </div>
+          <div class="field"><label for="fd-num-embarque">Nº Embarque</label><input type="text" id="fd-num-embarque" placeholder="EMB-2024-001"/></div>
+          <div class="field"><label for="fd-swift">Swift Number</label><input type="text" id="fd-swift" placeholder="SWIFT123"/></div>
+        </div>
+        <div class="form-footer">
+          <button class="btn-sec" onclick="resetDocForm()">Limpar</button>
+          <button class="btn-pri" onclick="submitDocForm()">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            Salvar Documento
+          </button>
+        </div>
+      </div>
+    </div>
+    <!-- MINI-DASH right side -->
+    <div class="mini-dash" id="mini-dash"></div>
+  </div>
+
+  <!-- TABLE AREA -->
+  <div class="company-tabs">
+    <button class="ctab active" onclick="setDocCoTab('all',this)">Todas</button>
+    <button class="ctab" onclick="setDocCoTab('Vale',this)">Vale</button>
+    <button class="ctab" onclick="setDocCoTab('Anglo Minas Rio',this)">Anglo Minas Rio</button>
+    <button class="ctab" onclick="setDocCoTab('Anglo Barro Alto',this)">Anglo Barro Alto</button>
+    <button class="ctab" onclick="setDocCoTab('Samarco',this)">Samarco</button>
+  </div>
+  <div class="filters-bar">
+    <div class="fg"><label>Busca</label><input type="text" id="df-search" placeholder="Pedido ou SO…" oninput="renderDocs()"/></div>
+    <div class="fg"><label>Mina</label><input type="text" id="df-mina" placeholder="Ex: Salobo…" oninput="renderDocs()"/></div>
+    <div class="fg"><label>Nº Embarque</label><input type="text" id="df-embarque" placeholder="Ex: EMB-001…" oninput="renderDocs()"/></div>
+    <div class="fg"><label>Status</label>
+      <select id="df-status" onchange="renderDocs()">
+        <option value="">Todos</option>
+        <option>Pedido aguardando aprovação de documentação de embarque</option>
+        <option>Pedido aprovado</option>
+        <option>Pedido com Problemas</option>
+      </select>
+    </div>
+    <button class="btn-clr" onclick="clearDocFilters()">Limpar</button>
+    <div style="margin-left:auto;display:flex;gap:6px;align-items:flex-end">
+      <button class="btn-excel" onclick="exportDocsXLS()">
+        <svg class="xls-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Exportar XLS
+      </button>
+      <button class="btn-excel btn-excel-import admin-only" onclick="document.getElementById('import-docs').click()" style="display:none">
+        <svg class="xls-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        Importar XLS
+      </button>
+      <input type="file" id="import-docs" class="hidden-input" accept=".xlsx,.xls,.csv" onchange="importDocsXLS(event)"/>
+    </div>
+  </div>
+  <div id="docs-container"></div>
+</div>
+
+<!-- ══════ KANBAN ══════ -->
+<div id="section-kanban" class="section admin-only" style="display:none">
+  <div class="page-hd"><h1>Kanban</h1><p>Painel de tarefas e RMAs — acesso restrito ao administrador</p></div>
+
+  <!-- Board Tabs -->
+  <div class="kb-board-tabs">
+    <button class="kb-board-tab active" onclick="switchBoard('comercial',this)">Time Comercial</button>
+    <button class="kb-board-tab" onclick="switchBoard('rma',this)">RMA</button>
+  </div>
+
+  <!-- TOP ROW: form (left) + calendar (right) — shared, board-specific form content swaps -->
+  <div class="kb-top-row">
+
+    <!-- LEFT: form (half width) -->
+    <div class="kb-form-half">
+
+      <!-- COMERCIAL form -->
+      <div id="kb-form-comercial" class="kb-add-form">
+        <div class="kb-add-form-title">Nova Entrada — Time Comercial</div>
+        <div class="kb-add-form-grid">
+          <div class="field" style="grid-column:1/-1">
+            <label class="kb-form-lbl">Titulo *</label>
+            <input class="kb-new-input" id="kb-c-title" placeholder="Descreva a tarefa…" onkeydown="if(event.key==='Enter')addCard('comercial')"/>
+          </div>
+          <div class="field">
+            <label class="kb-form-lbl">Prioridade</label>
+            <select class="kb-new-select" id="kb-c-prio">
+              <option value="normal">Normal</option>
+              <option value="alta">Alta</option>
+              <option value="urgente">Urgente</option>
+            </select>
+          </div>
+          <div class="field">
+            <label class="kb-form-lbl">Responsavel</label>
+            <select class="kb-new-select" id="kb-c-resp">
+              <option value="">Selecione...</option>
+              <option>Marcos</option><option>Paula</option><option>Aldo</option><option>Willian</option>
+              <option>Francisco</option><option>Alexandre</option><option>Comercial</option>
+              <option>Financeiro</option><option>Matriz - Tucson</option><option>Vale</option><option>Anglo</option>
+            </select>
+          </div>
+          <div class="field" style="grid-column:1/-1">
+            <label class="kb-form-lbl">Comentario</label>
+            <textarea class="kb-new-input" id="kb-c-comment" placeholder="Adicione um comentario inicial..." rows="2" style="resize:vertical;min-height:50px"></textarea>
+          </div>
+        </div>
+        <div style="display:flex;justify-content:flex-end;margin-top:9px">
+          <button class="btn-pri" onclick="addCard('comercial')" style="padding:7px 18px;font-size:13px">+ Adicionar</button>
+        </div>
+      </div>
+
+      <!-- RMA form -->
+      <div id="kb-form-rma" class="kb-add-form" style="display:none">
+        <div class="kb-add-form-title">Novo RMA</div>
+        <div class="kb-add-form-grid">
+          <div class="field" style="grid-column:1/-1">
+            <label class="kb-form-lbl">Titulo *</label>
+            <input class="kb-new-input" id="kb-r-title" placeholder="Descreva o reparo..." onkeydown="if(event.key==='Enter')addCard('rma')"/>
+          </div>
+          <div class="field">
+            <label class="kb-form-lbl">N Serie / Equipamento</label>
+            <input class="kb-new-input" id="kb-r-serial" placeholder="Ex: KM-930E-0047"/>
+          </div>
+          <div class="field">
+            <label class="kb-form-lbl">Prioridade</label>
+            <select class="kb-new-select" id="kb-r-prio">
+              <option value="normal">Normal</option>
+              <option value="alta">Alta</option>
+              <option value="urgente">Urgente</option>
+            </select>
+          </div>
+          <div class="field">
+            <label class="kb-form-lbl">Responsavel</label>
+            <select class="kb-new-select" id="kb-r-resp">
+              <option value="">Selecione...</option>
+              <option>Marcos</option><option>Paula</option><option>Aldo</option><option>Willian</option>
+              <option>Francisco</option><option>Alexandre</option><option>Comercial</option>
+              <option>Financeiro</option><option>Matriz - Tucson</option><option>Vale</option><option>Anglo</option>
+            </select>
+          </div>
+          <div class="field" style="grid-column:1/-1">
+            <label class="kb-form-lbl">Comentario</label>
+            <textarea class="kb-new-input" id="kb-r-comment" placeholder="Adicione um comentario inicial..." rows="2" style="resize:vertical;min-height:50px"></textarea>
+          </div>
+        </div>
+        <div style="display:flex;justify-content:flex-end;margin-top:9px">
+          <button class="btn-pri" onclick="addCard('rma')" style="padding:7px 18px;font-size:13px">+ Adicionar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: interactive calendar (shared) -->
+    <div class="kb-cal-wrap">
+      <div class="kb-cal-header">
+        <button class="kb-cal-nav" onclick="calNav(-1)">&#8249;</button>
+        <span class="kb-cal-month-lbl" id="cal-month-lbl"></span>
+        <button class="kb-cal-nav" onclick="calNav(1)">&#8250;</button>
+      </div>
+      <div class="kb-cal-weekdays">
+        <span>Dom</span><span>Seg</span><span>Ter</span><span>Qua</span><span>Qui</span><span>Sex</span><span>Sab</span>
+      </div>
+      <div class="kb-cal-grid" id="cal-grid"></div>
+    </div>
+  </div>
+
+  <!-- Day note popup -->
+  <div class="kb-day-overlay hidden" id="kb-day-overlay" onclick="if(event.target===this)closeDayNote()">
+    <div class="kb-day-box">
+      <div class="kb-day-title" id="kb-day-title">Anotacoes do dia</div>
+      <div class="kb-day-notes-list" id="kb-day-notes-list"></div>
+      <div style="margin-top:10px">
+        <label class="kb-form-lbl" style="margin-bottom:5px;display:block">Adicionar anotacao</label>
+        <textarea class="kb-new-input" id="kb-day-input" placeholder="Escreva uma anotacao para este dia..." rows="2" style="resize:vertical;min-height:56px" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();saveDayNote();}"></textarea>
+        <div style="font-size:10.5px;color:var(--gray-400);margin-top:3px">Enter para salvar / Shift+Enter para nova linha</div>
+      </div>
+      <div class="kb-note-footer">
+        <button class="btn-sec" onclick="closeDayNote()">Fechar</button>
+        <button class="btn-pri" onclick="saveDayNote()">Salvar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── BOARD: COMERCIAL ── -->
+  <div id="kb-board-comercial" class="kb-board">
+    <div class="kb-columns">
+      <div class="kb-col">
+        <div class="kb-col-hdr kb-col-fazer"><span>Entradas</span><span class="kb-cnt" id="kb-c-fazer-cnt">0</span></div>
+        <div class="kb-cards" id="cards-c-fazer" ondragover="event.preventDefault()" ondrop="dropCard(event,'comercial','fazer')"></div>
+      </div>
+      <div class="kb-col">
+        <div class="kb-col-hdr kb-col-fazendo"><span>Fazendo</span><span class="kb-cnt" id="kb-c-fazendo-cnt">0</span></div>
+        <div class="kb-cards" id="cards-c-fazendo" ondragover="event.preventDefault()" ondrop="dropCard(event,'comercial','fazendo')"></div>
+      </div>
+      <div class="kb-col">
+        <div class="kb-col-hdr kb-col-feito" style="justify-content:space-between">
+          <span>Feito</span>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span class="kb-cnt" id="kb-c-feito-cnt">0</span>
+            <button class="kb-archive-dl" onclick="downloadArchive('comercial')">Baixar arquivo</button>
+          </div>
+        </div>
+        <div class="kb-cards" id="cards-c-feito" ondragover="event.preventDefault()" ondrop="dropCard(event,'comercial','feito')"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── BOARD: RMA ── -->
+  <div id="kb-board-rma" class="kb-board" style="display:none">
+    <div class="kb-columns">
+      <div class="kb-col">
+        <div class="kb-col-hdr kb-col-fazer"><span>Aguardando</span><span class="kb-cnt" id="kb-r-fazer-cnt">0</span></div>
+        <div class="kb-cards" id="cards-r-fazer" ondragover="event.preventDefault()" ondrop="dropCard(event,'rma','fazer')"></div>
+      </div>
+      <div class="kb-col">
+        <div class="kb-col-hdr kb-col-fazendo"><span>Em Reparo</span><span class="kb-cnt" id="kb-r-fazendo-cnt">0</span></div>
+        <div class="kb-cards" id="cards-r-fazendo" ondragover="event.preventDefault()" ondrop="dropCard(event,'rma','fazendo')"></div>
+      </div>
+      <div class="kb-col">
+        <div class="kb-col-hdr kb-col-feito" style="justify-content:space-between">
+          <span>Concluido</span>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span class="kb-cnt" id="kb-r-feito-cnt">0</span>
+            <button class="kb-archive-dl" onclick="downloadArchive('rma')">Baixar arquivo</button>
+          </div>
+        </div>
+        <div class="kb-cards" id="cards-r-feito" ondragover="event.preventDefault()" ondrop="dropCard(event,'rma','feito')"></div>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- ══════ RELATORIOS ══════ -->
+<div id="section-relatorios" class="section admin-only" style="display:none">
+  <div class="page-hd"><h1>Relatorios</h1><p>Exportacao e analise de dados — acesso restrito ao administrador</p></div>
+
+  <!-- Filters -->
+  <div class="rel-filter-card">
+    <div class="dash-filter-title">Filtros do Relatorio</div>
+    <div class="dash-filter-row">
+      <div class="fg"><label>Empresa</label>
+        <select id="rel-empresa" onchange="renderRelatorios()">
+          <option value="all">Todas</option>
+          <option>Vale</option><option>Anglo Minas Rio</option><option>Anglo Barro Alto</option><option>Samarco</option>
+        </select>
+      </div>
+      <div class="fg"><label>Status</label>
+        <select id="rel-status" onchange="renderRelatorios()">
+          <option value="all">Todos</option>
+          <option>Pedido Processado</option>
+          <option>Aguardando documentação de embarque</option>
+          <option>Pedido coletado - Anglo</option>
+          <option>Pedido coletado - Samarco</option>
+          <option>Pedido enviado para Miami</option>
+        </select>
+      </div>
+      <div class="fg"><label>Periodo de</label><input type="date" id="rel-from" onchange="renderRelatorios()"/></div>
+      <div class="fg"><label>Periodo ate</label><input type="date" id="rel-to" onchange="renderRelatorios()"/></div>
+      <button class="btn-clr" onclick="clearRelFiltros()">Limpar</button>
+    </div>
+  </div>
+
+  <!-- Summary KPIs -->
+  <div class="rel-kpi-row" id="rel-kpi-row"></div>
+
+  <!-- Export buttons -->
+  <div class="rel-export-bar">
+    <span style="font-size:12px;font-weight:700;color:var(--k600);text-transform:uppercase;letter-spacing:.06em">Exportar</span>
+    <button class="btn-excel" onclick="exportRelXLS()">
+      <svg class="xls-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Pedidos XLS
+    </button>
+    <button class="btn-excel" onclick="exportDocsRelXLS()">
+      <svg class="xls-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Documentos XLS
+    </button>
+    <button class="btn-excel" onclick="exportHistoricoXLS()">
+      <svg class="xls-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Historico de Alteracoes XLS
+    </button>
+    <button class="btn-excel" style="border-color:#c0392b;color:#c0392b" onclick="exportAtrasadosXLS()">
+      <svg class="xls-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Pedidos Atrasados XLS
+    </button>
+  </div>
+
+  <!-- Notification section -->
+  <div class="notif-card">
+    <div class="dash-filter-title">Notificacoes — Pedidos Atrasados / Urgentes</div>
+    <div id="notif-list"></div>
+    <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn-pri" style="font-size:12.5px;padding:7px 16px" onclick="sendWhatsAppAlerts()">Enviar via WhatsApp</button>
+      <button class="btn-sec" style="font-size:12.5px;padding:7px 16px" onclick="copyEmailAlerts()">Copiar texto para E-mail</button>
+    </div>
+    <div id="notif-copy-area" style="display:none;margin-top:10px">
+      <textarea id="notif-email-txt" class="kb-new-input" rows="6" style="width:100%;font-size:12px;resize:vertical" readonly></textarea>
+      <button class="btn-sec" style="margin-top:6px;font-size:12px" onclick="document.execCommand && document.execCommand('copy');toast('Texto copiado!')">Copiar</button>
+    </div>
+  </div>
+
+  <!-- Historico de Alteracoes -->
+  <div class="table-wrap">
+    <div class="table-hdr"><div class="table-hdr-left"><span style="font-size:13px;font-weight:700;color:var(--k800)">Historico de Alteracoes</span></div></div>
+    <div class="tbl-scroll">
+      <table>
+        <thead><tr><th>Data / Hora</th><th>Pedido</th><th>Empresa</th><th>Mina</th><th>Campo</th><th>Alteracao</th></tr></thead>
+        <tbody id="rel-hist-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ══════ TRACKING ══════ -->
+<div id="section-tracking" class="section">
+  <div class="page-hd"><h1>Tracking de Frete</h1><p>Rastreamento de embarques por pedido</p></div>
+
+  <!-- Add tracking (admin only) -->
+  <div class="form-card admin-form admin-only" style="display:none;max-width:100%;margin-bottom:1.4rem">
+    <div class="form-card-hdr">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--k600)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      <h2>Adicionar / Atualizar Tracking</h2>
+    </div>
+    <div class="form-grid" style="grid-template-columns:repeat(3,1fr)">
+      <div class="field">
+        <label for="trk-pedido">Pedido *</label>
+        <input type="text" id="trk-pedido" placeholder="PED-2024-001"/>
+        <span class="ferr" id="trk-err-pedido">Campo obrigatorio</span>
+      </div>
+      <div class="field">
+        <label for="trk-modal">Modal</label>
+        <select id="trk-modal">
+          <option value="">Selecione...</option>
+          <option>Aereo</option><option>Maritimo</option><option>Rodoviario</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="trk-num">Numero de Rastreamento (AWB / BL)</label>
+        <input type="text" id="trk-num" placeholder="Ex: AWB 123-12345678"/>
+      </div>
+      <div class="field">
+        <label for="trk-carrier">Transportadora</label>
+        <input type="text" id="trk-carrier" placeholder="Ex: DHL, FedEx, Maersk"/>
+      </div>
+      <div class="field">
+        <label for="trk-status">Status do Frete</label>
+        <select id="trk-status">
+          <option value="">Selecione...</option>
+          <option>Aguardando coleta</option>
+          <option>Em transito</option>
+          <option>Alfandega</option>
+          <option>Saiu para entrega</option>
+          <option>Entregue</option>
+          <option>Problema na entrega</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="trk-eta">ETA (Previsao de chegada)</label>
+        <input type="date" id="trk-eta"/>
+      </div>
+      <div class="field">
+        <label for="trk-url">Link de Rastreamento</label>
+        <input type="url" id="trk-url" placeholder="https://..."/>
+      </div>
+      <div class="field">
+        <label for="trk-obs">Observacao</label>
+        <input type="text" id="trk-obs" placeholder="Informacoes adicionais..."/>
+      </div>
+    </div>
+    <div class="form-footer">
+      <button class="btn-sec" onclick="resetTracking()">Limpar</button>
+      <button class="btn-pri" onclick="submitTracking()">Salvar Tracking</button>
+    </div>
+  </div>
+
+  <!-- Filter -->
+  <div class="filters-bar">
+    <div class="fg"><label>Busca</label><input type="text" id="trk-search" placeholder="Pedido, transportadora..." oninput="renderTracking()"/></div>
+    <div class="fg"><label>Modal</label>
+      <select id="trk-filter-modal" onchange="renderTracking()">
+        <option value="">Todos</option><option>Aereo</option><option>Maritimo</option><option>Rodoviario</option>
+      </select>
+    </div>
+    <div class="fg"><label>Status</label>
+      <select id="trk-filter-status" onchange="renderTracking()">
+        <option value="">Todos</option>
+        <option>Aguardando coleta</option><option>Em transito</option><option>Alfandega</option>
+        <option>Saiu para entrega</option><option>Entregue</option><option>Problema na entrega</option>
+      </select>
+    </div>
+    <button class="btn-clr" onclick="clearTrkFilters()">Limpar</button>
+    <div style="margin-left:auto">
+      <button class="btn-excel" onclick="exportTrackingXLS()">
+        <svg class="xls-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Exportar XLS
+      </button>
+    </div>
+  </div>
+  <div id="tracking-container"></div>
+</div>
+
+</main>
+<!-- Kanban edit/note popup -->
+<div class="kb-note-overlay hidden" id="kb-note-overlay" onclick="if(event.target===this)closeNote()">
+  <div class="kb-note-box">
+    <div class="kb-note-title" id="kb-note-card-title">Editar Tarefa</div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div class="field">
+        <label style="font-size:11.5px;font-weight:700;color:var(--k600)">Titulo *</label>
+        <input type="text" class="kb-new-input" id="kb-edit-title" style="width:100%"/>
+      </div>
+      <div id="kb-edit-serial-field" class="field" style="display:none">
+        <label style="font-size:11.5px;font-weight:700;color:var(--k600)">Nº Serie / Equipamento</label>
+        <input type="text" class="kb-new-input" id="kb-edit-serial" style="width:100%"/>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div class="field">
+          <label style="font-size:11.5px;font-weight:700;color:var(--k600)">Prioridade</label>
+          <select class="kb-new-select" id="kb-edit-prio" style="width:100%">
+            <option value="normal">Normal</option>
+            <option value="alta">Alta</option>
+            <option value="urgente">Urgente</option>
+          </select>
+        </div>
+        <div class="field">
+          <label style="font-size:11.5px;font-weight:700;color:var(--k600)">Responsavel</label>
+          <select class="kb-new-select" id="kb-edit-resp" style="width:100%">
+            <option value="">Selecione…</option>
+            <option>Marcos</option><option>Paula</option><option>Aldo</option><option>Willian</option>
+            <option>Francisco</option><option>Alexandre</option><option>Comercial</option>
+            <option>Financeiro</option><option>Matriz - Tucson</option><option>Vale</option><option>Anglo</option>
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <label style="font-size:11.5px;font-weight:700;color:var(--k600)">Anotacao</label>
+        <textarea class="kb-note-textarea" id="kb-note-text" placeholder="Escreva uma anotacao…" rows="4"></textarea>
+      </div>
+    </div>
+    <div class="kb-note-footer">
+      <button class="btn-sec" onclick="closeNote()">Cancelar</button>
+      <button class="btn-pri" onclick="saveNote()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        Salvar
+      </button>
+    </div>
+  </div>
+</div>
+
+<button id="save-changes-btn" class="save-changes-btn" onclick="saveAllChanges()" style="display:none" title="Salvar todas as alterações">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+  Salvar Alterações
+</button>
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════
+// CONSTANTS
+// ═══════════════════════════════════════
+const EMPRESAS=['Vale','Anglo Minas Rio','Anglo Barro Alto','Samarco'];
+const MINAS_MAP={
+  'Vale':['Carajás','Itabira','Salobo','Sossego','S11D','Vargem Grande','Pico','Fábrica','Mina do Peixe','Mina da Alegria','Onça Puma'],
+  'Anglo Minas Rio':['Anglo Minas Rio'],
+  'Anglo Barro Alto':['Anglo Barro Alto'],
+  'Samarco':['Samarco'],
+};
+const STATUS_PED=['Pedido Processado','Aguardando documentação de embarque','Pedido coletado - Anglo','Pedido coletado - Samarco','Pedido enviado para Miami'];
+const STATUS_PED_COLORS=['#1a6a40','#e0a800','#1a3a80','#7c3aed','#b03030'];
+const STATUS_DOC=['Pedido aguardando aprovação de documentação de embarque','Pedido aprovado','Pedido com Problemas'];
+const STATUS_DOC_SHORT={'Pedido aguardando aprovação de documentação de embarque':'Aguardando','Pedido aprovado':'Aprovado','Pedido com Problemas':'Com Problemas'};
+const CO_PILL={'Vale':'pill-vale','Anglo Minas Rio':'pill-anglo-mr','Anglo Barro Alto':'pill-anglo-ba','Samarco':'pill-samarco'};
+const CO_COLORS=['#0c5b8a','#1a3a80','#7c3aed','#c0641a'];
+const MN=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+
+// ═══════════════════════════════════════
+// AUTH
+// ═══════════════════════════════════════
+const USERS={
+  modular: {pass:'salesbr26', role:'admin',   label:'🔐 Administrador', empresa:null},
+  vale:    {pass:'Vale26',    role:'cliente', label:'👁️ Vale',          empresa:'Vale'},
+  anglo:   {pass:'Anglo26',   role:'cliente', label:'👁️ Anglo',         empresa:'Anglo'},
+};
+let currentRole=null;
+let currentEmpresa=null; // null = todas; 'Vale' ou 'Anglo' = filtro de empresa do cliente
+
+function selectRole(r){
+  document.getElementById('rc-admin').classList.toggle('selected',r==='admin');
+  document.getElementById('rc-cliente').classList.toggle('selected',r!=='admin');
+}
+
+function doLogin(){
+  const u=document.getElementById('ls-user').value.trim().toLowerCase();
+  const p=document.getElementById('ls-pass').value;
+  const errEl=document.getElementById('ls-err');
+  const passEl=document.getElementById('ls-pass');
+  const user=USERS[u];
+  if(!user||user.pass!==p){
+    errEl.classList.add('show');
+    passEl.classList.add('err');
+    return;
+  }
+  errEl.classList.remove('show');
+  passEl.classList.remove('err');
+  currentRole=user.role;
+  currentEmpresa=user.empresa; // null para admin, 'Vale' ou 'Anglo' para clientes
+  applyRole(user);
+  document.getElementById('login-screen').classList.add('gone');
+  // Auto-filter to company for client users
+  if(currentEmpresa){
+    const empTab=currentEmpresa==='Anglo'?'Anglo Minas Rio':currentEmpresa;
+    activeCoTab=empTab;
+    activeDocCoTab=empTab;
+  }
+}
+
+function doLogout(){
+  currentRole=null;
+  currentEmpresa=null;
+  activeCoTab='all';
+  activeDocCoTab='all';
+  document.getElementById('ls-pass').value='';
+  document.getElementById('ls-user').value='';
+  document.getElementById('ls-err').classList.remove('show');
+  document.getElementById('ls-pass').classList.remove('err');
+  document.getElementById('rc-admin').classList.remove('selected');
+  document.getElementById('rc-cliente').classList.remove('selected');
+  document.getElementById('login-screen').classList.remove('gone');
+}
+
+function applyRole(user){
+  const isAdmin=user.role==='admin';
+  document.body.classList.toggle('client-mode',!isAdmin);
+  // Badge no header
+  const badge=document.getElementById('hdr-role-badge');
+  badge.textContent=user.label;
+  badge.className='hdr-role '+(isAdmin?'admin':'cliente');
+  // Mostrar/esconder elementos admin-only
+  document.querySelectorAll('.admin-only').forEach(el=>{ el.style.display=isAdmin?'':'none'; });
+  // Form de novo pedido (linha com mini-dash) só aparece para admin
+  const pedFormRow=document.getElementById('ped-form-row');
+  if(pedFormRow) pedFormRow.style.display=isAdmin?'grid':'none';
+  // Botão flutuante "Salvar Alterações" só para admin
+  const saveBtn=document.getElementById('save-changes-btn');
+  if(saveBtn) saveBtn.style.display=isAdmin?'flex':'none';
+  // Redirecionar: admin vai ao Dashboard, cliente vai direto aos Pedidos
+  if(!isAdmin){
+    showSection('pedidos');
+  } else {
+    showSection('dashboard');
+  }
+}
+
+// ═══════════════════════════════════════
+// DATA
+// ═══════════════════════════════════════
+function loadData(k,def){try{return JSON.parse(localStorage.getItem(k)||'null')||def;}catch(e){return def;}}
+function saveData(k,v){localStorage.setItem(k,JSON.stringify(v));}
+
+let pedidos=loadData('pedidos_v5',null);
+let docs=loadData('docs_v4',null);
+
+if(!pedidos){
+  pedidos=[
+    {id:1,empresa:'Vale',mina:'Salobo',pedido:'PED-2024-001',so:'SO-00101',valor:2500,status:'Pedido Processado',criado:'2024-03-01',previsao:'2024-03-20',comentarios:[]},
+    {id:2,empresa:'Vale',mina:'Carajás',pedido:'PED-2024-002',so:'SO-00102',valor:1650,status:'Aguardando documentação de embarque',criado:'2024-03-05',previsao:'2024-03-28',comentarios:[]},
+    {id:3,empresa:'Vale',mina:'Itabira',pedido:'PED-2024-003',so:'SO-00103',valor:3900,status:'Pedido enviado para Miami',criado:'2024-04-10',previsao:'2024-04-30',comentarios:[]},
+    {id:4,empresa:'Vale',mina:'S11D',pedido:'PED-2024-010',so:'SO-00110',valor:1120,status:'Pedido Processado',criado:'2024-05-01',previsao:'2024-05-20',comentarios:[]},
+    {id:5,empresa:'Anglo Minas Rio',mina:'Anglo Minas Rio',pedido:'PED-2024-004',so:'SO-00104',valor:4200,status:'Pedido coletado - Anglo',criado:'2024-03-10',previsao:'2024-04-05',comentarios:[]},
+    {id:6,empresa:'Anglo Minas Rio',mina:'Anglo Minas Rio',pedido:'PED-2024-005',so:'SO-00105',valor:1960,status:'Pedido Processado',criado:'2024-04-02',previsao:'2024-04-22',comentarios:[]},
+    {id:7,empresa:'Anglo Barro Alto',mina:'Anglo Barro Alto',pedido:'PED-2024-006',so:'SO-00106',valor:3080,status:'Aguardando documentação de embarque',criado:'2024-03-18',previsao:'2024-04-10',comentarios:[]},
+    {id:8,empresa:'Anglo Barro Alto',mina:'Anglo Barro Alto',pedido:'PED-2024-007',so:'SO-00107',valor:1440,status:'Pedido enviado para Miami',criado:'2024-04-08',previsao:'2024-05-01',comentarios:[]},
+    {id:9,empresa:'Samarco',mina:'Samarco',pedido:'PED-2024-008',so:'SO-00108',valor:6640,status:'Pedido coletado - Samarco',criado:'2024-03-15',previsao:'2024-04-15',comentarios:[]},
+    {id:10,empresa:'Samarco',mina:'Samarco',pedido:'PED-2024-009',so:'SO-00109',valor:2200,status:'Pedido Processado',criado:'2024-04-12',previsao:'2024-05-10',comentarios:[]},
+  ];
+  saveData('pedidos_v5',pedidos);
+}
+if(!docs){
+  docs=[
+    {id:1,empresa:'Vale',mina:'Salobo',pedido:'PED-2024-001',so:'SO-00101',valor:2500,status:'Pedido aprovado',enviado:'2024-03-12',aprovado:'2024-03-15',commInvoice:'CI-001',payInvoice:'PI-001',dtPagamento:'2024-04-01',fretePor:'DMS',numEmbarque:'EMB-001',swift:'SWIFT001'},
+    {id:2,empresa:'Anglo Minas Rio',mina:'Anglo Minas Rio',pedido:'PED-2024-004',so:'SO-00104',valor:4200,status:'Pedido aguardando aprovação de documentação de embarque',enviado:'2024-03-25',aprovado:'',commInvoice:'',payInvoice:'',dtPagamento:'',fretePor:'Login',numEmbarque:'EMB-002',swift:''},
+    {id:3,empresa:'Samarco',mina:'Samarco',pedido:'PED-2024-008',so:'SO-00108',valor:6640,status:'Pedido com Problemas',enviado:'2024-03-28',aprovado:'',commInvoice:'CI-003',payInvoice:'',dtPagamento:'',fretePor:'DMS',numEmbarque:'EMB-003',swift:'SWIFT003'},
+  ];
+  saveData('docs_v4',docs);
+}
+
+// ═══════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════
+function fmtDate(d){if(!d||d==='—')return'—';const p=d.split('-');return p.length===3?`${p[2]}/${p[1]}/${p[0]}`:'—';}
+function fmtUSD(v){return'$ '+Number(v||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});}
+function nowStr(){return new Date().toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});}
+function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2200);}
+
+function saveAllChanges(){
+  if(currentRole!=='admin')return;
+  // Força persistência de todos os dados atuais no localStorage
+  saveData('pedidos_v5',pedidos);
+  saveData('docs_v4',docs);
+  // Feedback visual no botão
+  const btn=document.getElementById('save-changes-btn');
+  if(btn){
+    const original=btn.innerHTML;
+    btn.classList.add('saved');
+    btn.innerHTML=`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Alterações Salvas!`;
+    setTimeout(()=>{ btn.classList.remove('saved'); btn.innerHTML=original; },1800);
+  }
+  toast('Todas as alterações foram salvas com sucesso!');
+}
+
+function sBadgePed(s){
+  const m={'Pedido Processado':'s-processado','Aguardando documentação de embarque':'s-aguardando','Pedido coletado - Anglo':'s-coletado-a','Pedido coletado - Samarco':'s-coletado-s','Pedido enviado para Miami':'s-miami'};
+  return`<span class="badge ${m[s]||''}">${s}</span>`;
+}
+function sBadgeDoc(s){
+  const m={'Pedido aguardando aprovação de documentação de embarque':'d-aguardando','Pedido aprovado':'d-aprovado','Pedido com Problemas':'d-problema'};
+  return`<span class="badge ${m[s]||''}">${STATUS_DOC_SHORT[s]||s}</span>`;
+}
+
+// ═══════════════════════════════════════
+// NAV
+// ═══════════════════════════════════════
+const SECS=['dashboard','pedidos','embarque','relatorios','tracking','kanban'];
+function showSection(id){
+  SECS.forEach(s=>{const el=document.getElementById('section-'+s);if(el)el.classList.remove('visible');});
+  document.querySelectorAll('nav button').forEach((b,i)=>b.classList.toggle('active',SECS[i]===id));
+  const sec=document.getElementById('section-'+id);if(sec)sec.classList.add('visible');
+  if(id==='dashboard')renderDashboard();
+  if(id==='pedidos'){renderPedidos();renderPedMiniDash();}
+  if(id==='embarque'){renderDocs();renderMiniDash();}
+  if(id==='relatorios')renderRelatorios();
+  if(id==='tracking')renderTracking();
+  if(id==='kanban'&&typeof renderKb==='function'){renderKb(kbActiveBoard);renderCal();}
+}
+
+// ═══════════════════════════════════════
+// MINA TOGGLE
+// ═══════════════════════════════════════
+function toggleMina(eId,mId,fId,errId){
+  const emp=document.getElementById(eId).value;
+  const field=document.getElementById(fId);
+  const sel=document.getElementById(mId);
+  const minas=MINAS_MAP[emp]||[];
+  const show=emp!==''&&minas.length>0;
+  field.classList.toggle('show',show);
+  sel.innerHTML='<option value="">Selecione…</option>'+minas.map(m=>`<option>${m}</option>`).join('');
+  if(minas.length===1)sel.value=minas[0];
+  if(!show&&errId){const e=document.getElementById(errId);if(e)e.classList.remove('show');}
+}
+
+// ═══════════════════════════════════════
+// PEDIDOS MINI-DASH (side panel beside form)
+// ═══════════════════════════════════════
+function renderPedMiniDash(){
+  renderPedSideMiniDash();
+}
+
+// ═══════════════════════════════════════
+// PEDIDOS TABLE
+// ═══════════════════════════════════════
+let activeCoTab='all';
+function setCoTab(val,btn){
+  activeCoTab=val;
+  document.querySelectorAll('#section-pedidos .ctab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderPedidos();
+  renderPedMiniDash();
+}
+function getFilteredPedidos(){
+  const s=(document.getElementById('f-search')?.value||'').toLowerCase();
+  const st=document.getElementById('f-status')?.value||'';
+  const fr=document.getElementById('f-date-from')?.value||'';
+  const to=document.getElementById('f-date-to')?.value||'';
+  const sortBy=document.getElementById('f-sort')?.value||'criado-desc';
+  let arr=pedidos.filter(p=>{
+    // restrict client users to their company
+    if(currentEmpresa){
+      const match=currentEmpresa==='Anglo'
+        ?p.empresa.startsWith('Anglo')
+        :p.empresa===currentEmpresa;
+      if(!match)return false;
+    } else if(activeCoTab!=='all'&&p.empresa!==activeCoTab)return false;
+    if(s&&!p.pedido.toLowerCase().includes(s)&&!p.so.toLowerCase().includes(s)&&!(p.mina||'').toLowerCase().includes(s))return false;
+    if(st&&p.status!==st)return false;
+    if(fr&&p.criado<fr)return false;
+    if(to&&p.criado>to)return false;
+    return true;
+  });
+  switch(sortBy){
+    case 'criado-asc':    arr.sort((a,b)=>(a.criado||'').localeCompare(b.criado||'')); break;
+    case 'previsao-asc':  arr.sort((a,b)=>(a.previsao||'9999-99-99').localeCompare(b.previsao||'9999-99-99')); break;
+    case 'previsao-desc': arr.sort((a,b)=>(b.previsao||'0000-00-00').localeCompare(a.previsao||'0000-00-00')); break;
+    case 'az':            arr.sort((a,b)=>a.pedido.localeCompare(b.pedido,'pt-BR',{numeric:true})); break;
+    case 'za':            arr.sort((a,b)=>b.pedido.localeCompare(a.pedido,'pt-BR',{numeric:true})); break;
+    case 'valor-desc':    arr.sort((a,b)=>(b.valor||0)-(a.valor||0)); break;
+    case 'valor-asc':     arr.sort((a,b)=>(a.valor||0)-(b.valor||0)); break;
+    default:              arr.sort((a,b)=>(b.criado||'').localeCompare(a.criado||'')); // criado-desc
+  }
+  return arr;
+}
+function renderPedidos(){
+  const arr=getFilteredPedidos();
+  const cont=document.getElementById('pedidos-container');
+  if(!arr.length){cont.innerHTML=`<div class="table-wrap"><div class="empty-state">Nenhum pedido encontrado.</div></div>`;return;}
+  const grupos=activeCoTab==='all'?EMPRESAS.filter(e=>arr.some(p=>p.empresa===e)):[activeCoTab];
+  cont.innerHTML=grupos.map(emp=>{
+    const g=arr.filter(p=>p.empresa===emp);if(!g.length)return'';
+    return`<div class="table-wrap">
+      <div class="table-hdr"><div class="table-hdr-left"><span class="badge co-pill ${CO_PILL[emp]||''}">${emp}</span><span class="rec-cnt">${g.length} pedido${g.length===1?'':'s'}</span></div></div>
+      <div class="tbl-scroll"><table>
+        <thead><tr><th>Pedido</th><th>SO</th><th>Mina</th><th>Valor (USD)</th><th>Status</th><th>Criado em</th><th>Previsão</th><th>💬 / 📋</th><th class="admin-only"></th></tr></thead>
+        <tbody>${g.map(p=>pedRow(p)).join('')}</tbody>
+      </table></div></div>`;
+  }).join('');
+  renderAlerts();
+}
+function pedRow(p){
+  const cnt=(p.comentarios||[]).length;
+  const isAdmin=currentRole==='admin';
+  const alert=getPedAlert(p);
+  const alertDot=alert==='red'?`<span class="row-alert red" title="Pedido atrasado"></span>`
+    :alert==='amber'?`<span class="row-alert amber" title="Vence em breve"></span>`:'';
+  // editable fields for admin, plain text for client
+  const valorCell=isAdmin
+    ?`<input type="number" class="inline-edit" value="${p.valor}" min="0" step="0.01" onchange="updatePedField(${p.id},'valor',this.value)" title="Editar valor"/>`
+    :`<strong>${fmtUSD(p.valor)}</strong>`;
+  const criadoCell=isAdmin
+    ?`<input type="date" class="inline-edit" value="${p.criado||''}" onchange="updatePedField(${p.id},'criado',this.value)" title="Editar data de criação"/>`
+    :fmtDate(p.criado);
+  const previsaoCell=isAdmin
+    ?`<input type="date" class="inline-edit" value="${p.previsao||''}" onchange="updatePedField(${p.id},'previsao',this.value)" title="Editar previsão"/>`
+    :fmtDate(p.previsao);
+  return`<tr id="row-${p.id}" class="${alert==='red'?'row-late':''}">
+    <td class="td-ped">${alertDot}${p.pedido}</td>
+    <td>${p.so}</td><td>${p.mina||'—'}</td>
+    <td>${valorCell}</td>
+    <td><select class="status-select" onchange="updateStatus(${p.id},this.value)">${STATUS_PED.map(s=>`<option${s===p.status?' selected':''}>${s}</option>`).join('')}</select></td>
+    <td>${criadoCell}</td><td>${previsaoCell}</td>
+    <td style="white-space:nowrap">
+      <button class="tl-btn" onclick="toggleTimeline(${p.id})" title="Ver linha do tempo">📋</button>
+      <button class="expand-btn" onclick="toggleCmt(${p.id})" title="Comentários">💬${cnt?`<sup style="font-size:9px;color:var(--k600);font-weight:700">${cnt}</sup>`:''}</button>
+    </td>
+    <td class="admin-only"><button class="btn-del" onclick="delPed(${p.id})">✕</button></td>
+  </tr>
+  <tr id="tlrow-${p.id}" class="timeline-row" style="display:none">
+    <td colspan="9">
+      <div class="timeline-wrap" id="tlwrap-${p.id}"></div>
+    </td>
+  </tr>
+  <tr id="cmtrow-${p.id}" style="display:none">
+    <td colspan="9" style="background:var(--k50);padding:9px 13px">
+      <div class="comment-list" id="clist-${p.id}">${(p.comentarios||[]).map(c=>`<div class="comment-item"><div>${c.texto}</div><div class="comment-meta">${c.data}</div></div>`).join('')}</div>
+      <textarea class="comment-box" id="ctxt-${p.id}" placeholder="Adicionar comentário…" rows="2"></textarea>
+      <button class="btn-save-comment admin-only" onclick="saveCmt(${p.id})">Salvar comentário</button>
+    </td>
+  </tr>`;
+}
+function toggleCmt(id){const r=document.getElementById('cmtrow-'+id);r.style.display=r.style.display==='none'?'table-row':'none';}
+
+// ─── ALERTAS DE ATRASO ────────────────────────────────────────────────────
+const TODAY=()=>{const d=new Date();d.setHours(0,0,0,0);return d;};
+function diffDays(dateStr){
+  if(!dateStr)return null;
+  const d=new Date(dateStr);d.setHours(0,0,0,0);
+  return Math.floor((d-TODAY())/(1000*60*60*24));
+}
+// Returns 'red' (atrasado), 'amber' (vence ≤7 dias), null (ok / sem previsão / já entregue)
+function getPedAlert(p){
+  const finalStatuses=['Pedido enviado para Miami'];
+  if(finalStatuses.includes(p.status))return null;
+  const diff=diffDays(p.previsao);
+  if(diff===null)return null;
+  if(diff<0)return'red';
+  if(diff<=7)return'amber';
+  return null;
+}
+let alertsOpen=false;
+function toggleAlerts(){
+  alertsOpen=!alertsOpen;
+  document.getElementById('alerts-body').classList.toggle('open',alertsOpen);
+  document.getElementById('alerts-toggle-lbl').textContent=alertsOpen?'Fechar ▲':'Ver detalhes ▼';
+}
+function renderAlerts(){
+  const filtered=getFilteredPedidos();
+  const atrasados=filtered.filter(p=>getPedAlert(p)==='red');
+  const urgentes=filtered.filter(p=>getPedAlert(p)==='amber');
+  const total=atrasados.length+urgentes.length;
+  const banner=document.getElementById('alerts-banner');
+  if(!banner)return;
+  if(total===0){banner.style.display='none';return;}
+  banner.style.display='';
+  const countEl=document.getElementById('alerts-count');
+  countEl.textContent=total;
+  countEl.className='alerts-count'+(atrasados.length>0?'':' amber');
+  const list=document.getElementById('alert-list');
+  const items=[
+    ...atrasados.map(p=>{
+      const d=diffDays(p.previsao);
+      return`<div class="alert-item atrasado">
+        <span class="alert-icon">🔴</span>
+        <div class="alert-text">
+          <div class="alert-ped">${p.pedido} — ${p.empresa}${p.mina?' / '+p.mina:''}</div>
+          <div class="alert-detail">Previsão: ${fmtDate(p.previsao)} · Status: ${p.status} · Valor: ${fmtUSD(p.valor)}</div>
+        </div>
+        <span class="alert-badge red">${Math.abs(d)} dia${Math.abs(d)===1?'':'s'} atrasado</span>
+      </div>`;
+    }),
+    ...urgentes.map(p=>{
+      const d=diffDays(p.previsao);
+      return`<div class="alert-item urgente">
+        <span class="alert-icon">🟡</span>
+        <div class="alert-text">
+          <div class="alert-ped">${p.pedido} — ${p.empresa}${p.mina?' / '+p.mina:''}</div>
+          <div class="alert-detail">Previsão: ${fmtDate(p.previsao)} · Status: ${p.status} · Valor: ${fmtUSD(p.valor)}</div>
+        </div>
+        <span class="alert-badge amber">${d===0?'Vence hoje':'Vence em '+d+' dia'+(d===1?'':'s')}</span>
+      </div>`;
+    }),
+  ];
+  list.innerHTML=items.join('');
+}
+
+// ─── TIMELINE ─────────────────────────────────────────────────────────────
+const TL_STEPS=[
+  {key:'criado',       label:'Pedido\nCriado',     icon:'📋', matchStatus:null},
+  {key:'processado',   label:'Processado',          icon:'⚙️', matchStatus:'Pedido Processado'},
+  {key:'doc',          label:'Aguard.\nDocumentação',icon:'📄', matchStatus:'Aguardando documentação de embarque'},
+  {key:'coletado',     label:'Coletado',            icon:'📦', matchStatus:['Pedido coletado - Anglo','Pedido coletado - Samarco']},
+  {key:'miami',        label:'Enviado\np/ Miami',   icon:'✈️', matchStatus:'Pedido enviado para Miami'},
+];
+function getTLStepState(step, p){
+  // 'criado' is always done if there's a criado date
+  if(step.key==='criado') return p.criado?'done':'pending';
+  const idx=TL_STEPS.findIndex(s=>s.key===step.key);
+  const currentIdx=TL_STEPS.findIndex(s=>{
+    if(!s.matchStatus)return false;
+    const m=Array.isArray(s.matchStatus)?s.matchStatus:[s.matchStatus];
+    return m.includes(p.status);
+  });
+  if(currentIdx===-1){
+    // status not matched in any step — treat processado as active
+    if(step.key==='processado')return'active';
+    return idx<1?'done':'pending';
+  }
+  if(idx<currentIdx)return'done';
+  if(idx===currentIdx)return'active';
+  return'pending';
+}
+function isLateStep(step,p){
+  // Late = current active step AND pedido is overdue
+  const state=getTLStepState(step,p);
+  if(state!=='active')return false;
+  return getPedAlert(p)==='red';
+}
+function toggleTimeline(id){
+  const row=document.getElementById('tlrow-'+id);
+  if(!row)return;
+  const open=row.style.display==='none';
+  row.style.display=open?'table-row':'none';
+  if(open) renderTimeline(id);
+}
+function renderTimeline(id){
+  const p=pedidos.find(x=>x.id===id);
+  const wrap=document.getElementById('tlwrap-'+id);
+  if(!p||!wrap)return;
+  const alert=getPedAlert(p);
+  const alertNote=alert==='red'
+    ?`<span style="font-size:10.5px;background:#fee2e2;color:#991b1b;padding:2px 8px;border-radius:12px;font-weight:700;margin-left:auto">🔴 ${Math.abs(diffDays(p.previsao))} dia(s) atrasado</span>`
+    :alert==='amber'
+    ?`<span style="font-size:10.5px;background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:12px;font-weight:700;margin-left:auto">🟡 Vence em ${diffDays(p.previsao)} dia(s)</span>`
+    :'';
+  wrap.innerHTML=`
+    <div class="timeline-title">
+      📋 Linha do Tempo — ${p.pedido}
+      ${alertNote}
+    </div>
+    <div class="timeline">
+      ${TL_STEPS.map(step=>{
+        const late=isLateStep(step,p);
+        const state=late?'late':getTLStepState(step,p);
+        const dateVal=step.key==='criado'?p.criado
+          :step.key==='miami'&&p.status==='Pedido enviado para Miami'?p.previsao
+          :state==='active'||state==='late'?'Agora':null;
+        return`<div class="tl-step ${state}">
+          <div class="tl-dot">${state==='done'?'✓':step.icon}</div>
+          <div class="tl-label">${step.label.replace('\n','<br>')}</div>
+          <div class="tl-date">${dateVal?fmtDate(dateVal):''}</div>
+        </div>`;
+      }).join('')}
+    </div>
+    ${p.previsao?`<div style="font-size:10.5px;color:var(--gray-400);margin-top:10px;padding-top:8px;border-top:1px solid var(--gray-100)">
+      🗓️ <strong>Previsão de entrega:</strong> ${fmtDate(p.previsao)}
+      ${p.criado?` &nbsp;·&nbsp; ⏱️ <strong>Criado em:</strong> ${fmtDate(p.criado)}`:''}
+    </div>`:''}`;
+}
+function updateStatus(id,v){
+  if(currentRole!=='admin'){toast('Apenas administradores podem alterar o status.');return;}
+  const p=pedidos.find(x=>x.id===id);if(!p)return;
+  const prev=p.status;
+  p.status=v;
+  addPedHistory(p,'Status','De: '+prev+' → Para: '+v);
+  saveData('pedidos_v5',pedidos);renderPedMiniDash();renderAlerts();toast('Status atualizado');
+}
+function updatePedField(id,field,val){
+  if(currentRole!=='admin')return;
+  const p=pedidos.find(x=>x.id===id);if(!p)return;
+  const labels={'valor':'Valor','criado':'Criado em','previsao':'Previsão'};
+  const prev=field==='valor'?fmtUSD(p.valor||0):(p[field]?fmtDate(p[field]):'—');
+  if(field==='valor') p.valor=parseFloat(val)||0;
+  else p[field]=val;
+  const novo=field==='valor'?fmtUSD(p.valor):(p[field]?fmtDate(p[field]):'—');
+  addPedHistory(p,labels[field]||field,'De: '+prev+' → Para: '+novo);
+  saveData('pedidos_v5',pedidos);
+  renderPedMiniDash();
+  renderAlerts();
+  toast('Campo atualizado');
+}
+function saveCmt(id){
+  if(currentRole!=='admin'){toast('Apenas administradores podem comentar.');return;}
+  const txt=document.getElementById('ctxt-'+id)?.value?.trim();if(!txt)return;
+  const p=pedidos.find(x=>x.id===id);if(!p)return;
+  if(!p.comentarios)p.comentarios=[];
+  const c={texto:txt,data:nowStr()};p.comentarios.push(c);
+  saveData('pedidos_v5',pedidos);
+  document.getElementById('ctxt-'+id).value='';
+  const list=document.getElementById('clist-'+id);
+  const div=document.createElement('div');div.className='comment-item';
+  div.innerHTML=`<div>${c.texto}</div><div class="comment-meta">${c.data}</div>`;
+  list.appendChild(div);
+  const btn=document.querySelector(`#row-${id} .expand-btn`);
+  if(btn)btn.innerHTML=`💬<sup style="font-size:9px;color:var(--k600);font-weight:700">${p.comentarios.length}</sup>`;
+  toast('Comentário salvo');
+}
+function delPed(id){
+  if(currentRole!=='admin')return;
+  if(!confirm('Excluir pedido?'))return;
+  pedidos=pedidos.filter(p=>p.id!==id);saveData('pedidos_v5',pedidos);
+  renderPedidos();renderPedMiniDash();toast('Pedido removido');
+}
+function clearFilters(){['f-search','f-status','f-date-from','f-date-to'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});const sortEl=document.getElementById('f-sort');if(sortEl)sortEl.value='criado-desc';renderPedidos();renderPedMiniDash();}
+
+// ═══════════════════════════════════════
+// FORM — Novo Pedido
+// ═══════════════════════════════════════
+function resetForm(){
+  ['fp-empresa','fp-mina','fp-pedido','fp-so','fp-valor','fp-status','fp-criado','fp-previsao'].forEach(id=>{const e=document.getElementById(id);if(e){e.value='';e.classList.remove('err');}});
+  ['err-empresa','err-mina','err-pedido','err-so','err-valor','err-status','err-criado'].forEach(id=>{const e=document.getElementById(id);if(e)e.classList.remove('show');});
+  document.getElementById('mina-field-ped').classList.remove('show');
+}
+function vf(id,eid,check){const el=document.getElementById(id);if(!el)return true;const ok=check(el.value);el.classList.toggle('err',!ok);const e=document.getElementById(eid);if(e)e.classList.toggle('show',!ok);return ok;}
+function submitForm(){
+  if(currentRole!=='admin'){toast('Apenas administradores podem adicionar pedidos.');return;}
+  const emp=document.getElementById('fp-empresa').value;
+  if(!vf('fp-empresa','err-empresa',v=>v!=='')||!vf('fp-pedido','err-pedido',v=>v.trim()!=='')||!vf('fp-so','err-so',v=>v.trim()!=='')||!vf('fp-valor','err-valor',v=>v!==''&&!isNaN(v)&&Number(v)>=0)||!vf('fp-status','err-status',v=>v!=='')||!vf('fp-criado','err-criado',v=>v!=='')||(emp&&!vf('fp-mina','err-mina',v=>v!=='')))return;
+  pedidos.push({id:Date.now(),empresa:emp,mina:document.getElementById('fp-mina')?.value||'',
+    pedido:document.getElementById('fp-pedido').value.trim(),so:document.getElementById('fp-so').value.trim(),
+    valor:parseFloat(document.getElementById('fp-valor').value),status:document.getElementById('fp-status').value,
+    criado:document.getElementById('fp-criado').value,previsao:document.getElementById('fp-previsao').value,comentarios:[]});
+  saveData('pedidos_v5',pedidos);resetForm();toast('Pedido salvo!');
+  setTimeout(()=>showSection('pedidos'),800);
+}
+
+// ═══════════════════════════════════════
+// DOCS
+// ═══════════════════════════════════════
+let activeDocCoTab='all';
+function setDocCoTab(val,btn){
+  activeDocCoTab=val;
+  document.querySelectorAll('#section-embarque .company-tabs .ctab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');renderDocs();renderMiniDash();
+}
+function resetDocForm(){
+  ['fd-empresa','fd-mina','fd-pedido','fd-so','fd-valor','fd-status','fd-enviado','fd-aprovado','fd-comm-invoice','fd-pay-invoice','fd-dt-pagamento','fd-frete-por','fd-num-embarque','fd-swift'].forEach(id=>{const e=document.getElementById(id);if(e){e.value='';e.classList.remove('err');}});
+  document.getElementById('mina-field-doc').classList.remove('show');
+}
+function submitDocForm(){
+  if(currentRole!=='admin'){toast('Apenas administradores podem adicionar documentos.');return;}
+  if(!vf('fd-empresa','derr-empresa',v=>v!=='')||!vf('fd-pedido','derr-pedido',v=>v.trim()!=='')||!vf('fd-so','derr-so',v=>v.trim()!=='')||!vf('fd-status','derr-status',v=>v!==''))return;
+  const emp=document.getElementById('fd-empresa').value;
+  docs.push({id:Date.now(),empresa:emp,mina:document.getElementById('fd-mina')?.value||'',
+    pedido:document.getElementById('fd-pedido').value.trim(),so:document.getElementById('fd-so').value.trim(),
+    valor:parseFloat(document.getElementById('fd-valor').value)||0,status:document.getElementById('fd-status').value,
+    enviado:document.getElementById('fd-enviado').value,aprovado:document.getElementById('fd-aprovado').value,
+    commInvoice:document.getElementById('fd-comm-invoice').value.trim(),payInvoice:document.getElementById('fd-pay-invoice').value.trim(),
+    dtPagamento:document.getElementById('fd-dt-pagamento').value,fretePor:document.getElementById('fd-frete-por').value,
+    numEmbarque:document.getElementById('fd-num-embarque').value.trim(),swift:document.getElementById('fd-swift').value.trim()});
+  saveData('docs_v4',docs);resetDocForm();renderDocs();renderMiniDash();toast('Documento salvo!');
+}
+function renderDocs(){
+  const s=(document.getElementById('df-search')?.value||'').toLowerCase();
+  const st=document.getElementById('df-status')?.value||'';
+  const fMina=(document.getElementById('df-mina')?.value||'').toLowerCase();
+  const fEmb=(document.getElementById('df-embarque')?.value||'').toLowerCase();
+  const arr=docs.filter(d=>{
+    // restrict client users to their company
+    if(currentEmpresa){
+      const match=currentEmpresa==='Anglo'
+        ?d.empresa.startsWith('Anglo')
+        :d.empresa===currentEmpresa;
+      if(!match)return false;
+    } else if(activeDocCoTab!=='all'&&d.empresa!==activeDocCoTab)return false;
+    if(s&&!d.pedido.toLowerCase().includes(s)&&!d.so.toLowerCase().includes(s))return false;
+    if(fMina&&!(d.mina||'').toLowerCase().includes(fMina))return false;
+    if(fEmb&&!(d.numEmbarque||'').toLowerCase().includes(fEmb))return false;
+    if(st&&d.status!==st)return false;
+    return true;
+  }).sort((a,b)=>(b.enviado||'').localeCompare(a.enviado||''));
+  const cont=document.getElementById('docs-container');
+  if(!arr.length){cont.innerHTML=`<div class="table-wrap"><div class="empty-state">Nenhum documento encontrado.</div></div>`;return;}
+  const grupos=activeDocCoTab==='all'&&!currentEmpresa
+    ?EMPRESAS.filter(e=>arr.some(d=>d.empresa===e))
+    :currentEmpresa
+      ?EMPRESAS.filter(e=>e.startsWith(currentEmpresa==='Anglo'?'Anglo':currentEmpresa)&&arr.some(d=>d.empresa===e))
+      :[activeDocCoTab];
+
+  cont.innerHTML=grupos.map(emp=>{
+    const g=arr.filter(d=>d.empresa===emp);if(!g.length)return'';
+    return`<div class="table-wrap">
+      <div class="table-hdr">
+        <div class="table-hdr-left">
+          <span class="badge co-pill ${CO_PILL[emp]||''}">${emp}</span>
+          <span class="rec-cnt">${g.length} doc${g.length===1?'':'s'}</span>
+        </div>
+      </div>
+      <div class="doc-cards-wrap" style="padding:.75rem .9rem 0">
+        ${g.map((d,idx)=>`
+        <div class="doc-card">
+          <!-- collapsed header row -->
+          <div class="doc-card-hdr" onclick="toggleDocCard('dc-${d.id}')">
+            <span class="doc-card-pedido">${d.pedido}</span>
+            <span class="doc-card-so">${d.so}</span>
+            <span class="doc-card-mina">${d.mina||'—'}</span>
+            <span class="doc-card-inline"><span class="doc-card-inline-lbl">Comm. Invoice</span><span class="doc-card-inline-val">${d.commInvoice||'—'}</span></span>
+            <span class="doc-card-inline"><span class="doc-card-inline-lbl">Enviado em</span><span class="doc-card-inline-val">${fmtDate(d.enviado)}</span></span>
+            <span class="doc-card-inline"><span class="doc-card-inline-lbl">Aprovado em</span><span class="doc-card-inline-val">${fmtDate(d.aprovado)}</span></span>
+            <span>${sBadgeDoc(d.status)}</span>
+            <span class="doc-card-valor">${fmtUSD(d.valor)}</span>
+            <span class="doc-card-chevron" id="chev-${d.id}">▼</span>
+          </div>
+          <!-- expanded body -->
+          <div class="doc-card-body" id="dc-${d.id}">
+            <div class="doc-grid">
+              <div class="doc-field"><span class="doc-field-lbl">Payment Invoice</span><span class="doc-field-val">${d.payInvoice||'—'}</span></div>
+              <div class="doc-field"><span class="doc-field-lbl">Data Est. Pagamento</span><span class="doc-field-val">${fmtDate(d.dtPagamento)}</span></div>
+              <div class="doc-field"><span class="doc-field-lbl">Frete Realizado por</span><span class="doc-field-val">${d.fretePor?`<span class="badge" style="background:#eaecf4;color:var(--k800)">${d.fretePor}</span>`:'—'}</span></div>
+              <div class="doc-field"><span class="doc-field-lbl">Nº Embarque</span><span class="doc-field-val">${d.numEmbarque||'—'}</span></div>
+              <div class="doc-field"><span class="doc-field-lbl">Swift Number</span><span class="doc-field-val">${d.swift||'—'}</span></div>
+            </div>
+            <div class="doc-card-footer">
+              <div class="admin-only" style="display:${currentRole==='admin'?'flex':'none'};align-items:center;gap:8px">
+                <span style="font-size:11px;font-weight:700;color:var(--gray-400);text-transform:uppercase;letter-spacing:.06em">Alterar Status:</span>
+                <select class="status-select" onchange="updateDocStatus(${d.id},this.value)">${STATUS_DOC.map(s=>`<option${s===d.status?' selected':''}>${s}</option>`).join('')}</select>
+              </div>
+              <button class="btn-del admin-only" onclick="delDoc(${d.id})" style="display:${currentRole==='admin'?'':'none'}" title="Excluir documento">✕ Excluir</button>
+            </div>
+          </div>
+        </div>`).join('')}
+      </div>
+      <div style="height:.75rem"></div>
+    </div>`;
+  }).join('');
+}
+function updateDocStatus(id,v){
+  if(currentRole!=='admin'){toast('Apenas administradores podem alterar o status.');return;}
+  const d=docs.find(x=>x.id===id);if(!d)return;
+  d.status=v;saveData('docs_v4',docs);renderMiniDash();toast('Status atualizado');
+}
+function delDoc(id){
+  if(currentRole!=='admin')return;
+  if(!confirm('Excluir?'))return;
+  docs=docs.filter(d=>d.id!==id);saveData('docs_v4',docs);renderDocs();renderMiniDash();toast('Documento removido');
+}
+function clearDocFilters(){['df-search','df-mina','df-embarque','df-status'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});renderDocs();}
+function toggleDocCard(id){
+  const body=document.getElementById(id);
+  const chevId=id.replace('dc-','chev-');
+  const chev=document.getElementById(chevId);
+  if(!body)return;
+  const open=body.classList.toggle('open');
+  if(chev)chev.classList.toggle('open',open);
+}
+
+// ═══════════════════════════════════════
+// DOCS MINI-DASH (side)
+// ═══════════════════════════════════════
+function renderMiniDash(){
+  const panel=document.getElementById('mini-dash');if(!panel)return;
+  const scope=activeDocCoTab==='all'?docs:docs.filter(d=>d.empresa===activeDocCoTab);
+  const total=scope.length;
+  const valTotal=scope.reduce((s,d)=>s+(d.valor||0),0);
+  const aprovados=scope.filter(d=>d.status==='Pedido aprovado').length;
+  const problemas=scope.filter(d=>d.status==='Pedido com Problemas').length;
+  const aguard=scope.filter(d=>d.status==='Pedido aguardando aprovação de documentação de embarque').length;
+  const minaVal={};
+  scope.forEach(d=>{if(d.mina)minaVal[d.mina]=(minaVal[d.mina]||0)+(d.valor||0);});
+  const mE=Object.entries(minaVal).sort((a,b)=>b[1]-a[1]).slice(0,6);
+  const maxV=mE[0]?mE[0][1]:1;
+  const stRows=[{l:'Aguardando',v:aguard,c:'#e0a800'},{l:'Aprovado',v:aprovados,c:'#1a6a40'},{l:'Com Problemas',v:problemas,c:'#c0392b'}];
+  panel.innerHTML=`
+    <div class="mini-card">
+      <div class="mini-card-title">Docs de Embarque</div>
+      <div class="mini-kpi-grid">
+        <div class="mini-kpi"><div class="mini-kpi-lbl">Total</div><div class="mini-kpi-val">${total}</div></div>
+        <div class="mini-kpi"><div class="mini-kpi-lbl">Aprovados</div><div class="mini-kpi-val" style="color:#1a6a40">${aprovados}</div></div>
+        <div class="mini-kpi"><div class="mini-kpi-lbl">Aguardando</div><div class="mini-kpi-val" style="color:#7a4f00">${aguard}</div></div>
+        <div class="mini-kpi"><div class="mini-kpi-lbl">Problemas</div><div class="mini-kpi-val" style="color:#c0392b">${problemas}</div></div>
+      </div>
+      <div style="margin-top:9px;padding-top:8px;border-top:1px solid var(--gray-100)">
+        <div class="mini-kpi-lbl" style="margin-bottom:3px">Valor Total</div>
+        <div style="font-size:16px;font-weight:800;color:var(--k800)">${fmtUSD(valTotal)}</div>
+      </div>
+    </div>
+    <div class="mini-card">
+      <div class="mini-card-title">Status</div>
+      ${stRows.map(r=>`<div class="mini-stat-row"><span class="mini-stat-label"><span class="mini-dot" style="background:${r.c}"></span>${r.l}</span><span class="mini-stat-val">${r.v}</span></div>`).join('')}
+      ${total?`<div style="margin-top:8px;height:7px;border-radius:4px;overflow:hidden;display:flex;gap:1px">${stRows.filter(r=>r.v>0).map(r=>`<div style="flex:${r.v};background:${r.c};opacity:.85"></div>`).join('')}</div>`:''}
+    </div>
+    <div class="mini-card">
+      <div class="mini-card-title">Valor por Mina (USD)</div>
+      ${mE.length?mE.map(([m,v])=>`<div class="mini-bar-row"><div class="mini-bar-label" title="${m}">${m}</div><div class="mini-bar-track"><div class="mini-bar-fill" style="width:${Math.round(v/maxV*100)}%;background:var(--k600)"></div></div><div class="mini-bar-cnt">${fmtUSD(v)}</div></div>`).join(''):`<div style="font-size:12px;color:var(--gray-400)">Sem dados</div>`}
+    </div>`;
+}
+
+// ═══════════════════════════════════════
+// PEDIDOS MINI-DASH (side, beside Novo Pedido form)
+// ═══════════════════════════════════════
+function renderPedSideMiniDash(){
+  const panel=document.getElementById('ped-side-minidash');if(!panel)return;
+  const scope=currentEmpresa
+    ?pedidos.filter(p=>currentEmpresa==='Anglo'?p.empresa.startsWith('Anglo'):p.empresa===currentEmpresa)
+    :(activeCoTab==='all'?pedidos:pedidos.filter(p=>p.empresa===activeCoTab));
+  const total=scope.length;
+  const valTotal=scope.reduce((s,p)=>s+(p.valor||0),0);
+  const processado=scope.filter(p=>p.status==='Pedido Processado').length;
+  const aguard=scope.filter(p=>p.status==='Aguardando documentação de embarque').length;
+  const miami=scope.filter(p=>p.status==='Pedido enviado para Miami').length;
+  const minaVal={};
+  scope.forEach(p=>{if(p.mina)minaVal[p.mina]=(minaVal[p.mina]||0)+(p.valor||0);});
+  const mE=Object.entries(minaVal).sort((a,b)=>b[1]-a[1]).slice(0,6);
+  const maxV=mE[0]?mE[0][1]:1;
+  const stRows=[{l:'Processado',v:processado,c:'#1a6a40'},{l:'Aguard. Doc.',v:aguard,c:'#e0a800'},{l:'Enviado Miami',v:miami,c:'#b03030'}];
+  panel.innerHTML=`
+    <div class="mini-card">
+      <div class="mini-card-title">Resumo dos Pedidos</div>
+      <div class="mini-kpi-grid">
+        <div class="mini-kpi"><div class="mini-kpi-lbl">Total</div><div class="mini-kpi-val">${total}</div></div>
+        <div class="mini-kpi"><div class="mini-kpi-lbl">Processado</div><div class="mini-kpi-val" style="color:#1a6a40">${processado}</div></div>
+        <div class="mini-kpi"><div class="mini-kpi-lbl">Aguard. Doc.</div><div class="mini-kpi-val" style="color:#7a4f00">${aguard}</div></div>
+        <div class="mini-kpi"><div class="mini-kpi-lbl">Env. Miami</div><div class="mini-kpi-val" style="color:#b03030">${miami}</div></div>
+      </div>
+      <div style="margin-top:9px;padding-top:8px;border-top:1px solid var(--gray-100)">
+        <div class="mini-kpi-lbl" style="margin-bottom:3px">Valor Total</div>
+        <div style="font-size:16px;font-weight:800;color:var(--k800)">${fmtUSD(valTotal)}</div>
+      </div>
+    </div>
+    <div class="mini-card">
+      <div class="mini-card-title">Status</div>
+      ${stRows.map(r=>`<div class="mini-stat-row"><span class="mini-stat-label"><span class="mini-dot" style="background:${r.c}"></span>${r.l}</span><span class="mini-stat-val">${r.v}</span></div>`).join('')}
+      ${total?`<div style="margin-top:8px;height:7px;border-radius:4px;overflow:hidden;display:flex;gap:1px">${stRows.filter(r=>r.v>0).map(r=>`<div style="flex:${r.v};background:${r.c};opacity:.85"></div>`).join('')}</div>`:''}
+    </div>
+    <div class="mini-card">
+      <div class="mini-card-title">Valor por Mina (USD)</div>
+      ${mE.length?mE.map(([m,v])=>`<div class="mini-bar-row"><div class="mini-bar-label" title="${m}">${m}</div><div class="mini-bar-track"><div class="mini-bar-fill" style="width:${Math.round(v/maxV*100)}%;background:var(--k600)"></div></div><div class="mini-bar-cnt">${fmtUSD(v)}</div></div>`).join(''):`<div style="font-size:12px;color:var(--gray-400)">Sem dados</div>`}
+    </div>`;
+}
+
+// ═══════════════════════════════════════
+// EXCEL
+// ═══════════════════════════════════════
+function exportPedidosXLS(){
+  const arr=getFilteredPedidos();
+  const ws=XLSX.utils.json_to_sheet(arr.map(p=>({'Empresa':p.empresa,'Mina':p.mina||'','Pedido':p.pedido,'SO':p.so,'Valor (USD)':p.valor,'Status':p.status,'Criado em':fmtDate(p.criado),'Previsão':fmtDate(p.previsao),'Comentários':(p.comentarios||[]).map(c=>c.texto).join(' | ')})));
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Pedidos');
+  XLSX.writeFile(wb,'pedidos_komatsu.xlsx');toast('Excel exportado!');
+}
+function importPedidosXLS(ev){
+  if(currentRole!=='admin'){toast('Apenas administradores podem importar.');return;}
+  const file=ev.target.files[0];if(!file)return;
+  const r=new FileReader();
+  r.onload=function(e){
+    try{
+      const wb=XLSX.read(e.target.result,{type:'binary'});
+      const rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+      let n=0;
+      rows.forEach(r=>{
+        const emp=(r['Empresa']||'').trim();if(!EMPRESAS.includes(emp))return;
+        pedidos.push({id:Date.now()+Math.random(),empresa:emp,mina:(r['Mina']||'').trim(),
+          pedido:(r['Pedido']||'').toString().trim(),so:(r['SO']||'').toString().trim(),
+          valor:parseFloat(r['Valor (USD)']||r['Valor']||0)||0,
+          status:STATUS_PED.includes(r['Status'])?r['Status']:STATUS_PED[0],
+          criado:parseXD(r['Criado em']||r['Criado']||''),previsao:parseXD(r['Previsão']||r['Previsao']||''),comentarios:[]});n++;
+      });
+      saveData('pedidos_v5',pedidos);renderPedidos();renderPedMiniDash();toast(`${n} pedido(s) importado(s)!`);
+    }catch(err){toast('Erro ao importar');}
+    ev.target.value='';
+  };r.readAsBinaryString(file);
+}
+function exportDocsXLS(){
+  const ws=XLSX.utils.json_to_sheet(docs.map(d=>({'Empresa':d.empresa,'Mina':d.mina||'','Pedido':d.pedido,'SO':d.so,'Valor (USD)':d.valor||0,'Status':d.status,'Enviado em':fmtDate(d.enviado),'Aprovado em':fmtDate(d.aprovado),'Commercial Invoice':d.commInvoice||'','Payment Invoice':d.payInvoice||'','Data Estimada de Pagamento':fmtDate(d.dtPagamento),'Frete Realizado por':d.fretePor||'','Número de Embarque':d.numEmbarque||'','Swift Number':d.swift||''})));
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Docs Embarque');
+  XLSX.writeFile(wb,'docs_embarque_komatsu.xlsx');toast('Excel exportado!');
+}
+function importDocsXLS(ev){
+  if(currentRole!=='admin'){toast('Apenas administradores podem importar.');return;}
+  const file=ev.target.files[0];if(!file)return;
+  const r=new FileReader();
+  r.onload=function(e){
+    try{
+      const wb=XLSX.read(e.target.result,{type:'binary'});
+      const rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+      let n=0;
+      rows.forEach(r=>{
+        const emp=(r['Empresa']||'').trim();if(!EMPRESAS.includes(emp))return;
+        docs.push({id:Date.now()+Math.random(),empresa:emp,mina:(r['Mina']||'').trim(),
+          pedido:(r['Pedido']||'').toString().trim(),so:(r['SO']||'').toString().trim(),
+          valor:parseFloat(r['Valor (USD)']||r['Valor']||0)||0,
+          status:STATUS_DOC.includes(r['Status'])?r['Status']:STATUS_DOC[0],
+          enviado:parseXD(r['Enviado em']||r['Enviado']||''),aprovado:parseXD(r['Aprovado em']||r['Aprovado']||''),
+          commInvoice:(r['Commercial Invoice']||'').toString().trim(),payInvoice:(r['Payment Invoice']||'').toString().trim(),
+          dtPagamento:parseXD(r['Data Estimada de Pagamento']||''),fretePor:(r['Frete Realizado por']||'').toString().trim(),
+          numEmbarque:(r['Número de Embarque']||'').toString().trim(),swift:(r['Swift Number']||'').toString().trim()});n++;
+      });
+      saveData('docs_v4',docs);renderDocs();renderMiniDash();toast(`${n} documento(s) importado(s)!`);
+    }catch(err){toast('Erro ao importar');}
+    ev.target.value='';
+  };r.readAsBinaryString(file);
+}
+function parseXD(val){
+  if(!val)return'';
+  if(typeof val==='number'){const d=new Date((val-25569)*86400*1000);return d.toISOString().substring(0,10);}
+  const s=val.toString().trim();
+  if(/^\d{2}\/\d{2}\/\d{4}$/.test(s)){const[d,m,y]=s.split('/');return`${y}-${m}-${d}`;}
+  if(/^\d{4}-\d{2}-\d{2}$/.test(s))return s;
+  return'';
+}
+
+// ═══════════════════════════════════════
+// DASHBOARD
+// ═══════════════════════════════════════
+let chartRefs={};
+function destroyChart(k){if(chartRefs[k]){chartRefs[k].destroy();chartRefs[k]=null;}}
+
+function getDashFiltered(){
+  const empresa = document.getElementById('df-empresa')?.value||'all';
+  const mina    = document.getElementById('df-mina')?.value||'all';
+  const status  = document.getElementById('df-status-dash')?.value||'all';
+  const from    = document.getElementById('df-from')?.value||'';
+  const to      = document.getElementById('df-to')?.value||'';
+  return pedidos.filter(p=>{
+    if(empresa!=='all'&&p.empresa!==empresa) return false;
+    if(mina!=='all'&&(p.mina||'')!==mina)   return false;
+    if(status!=='all'&&p.status!==status)    return false;
+    if(from&&p.criado<from)                  return false;
+    if(to&&p.criado>to)                      return false;
+    return true;
+  });
+}
+
+function updateMinaOptions(){
+  const empresa=document.getElementById('df-empresa')?.value||'all';
+  const sel=document.getElementById('df-mina');
+  if(!sel)return;
+  const minas=empresa==='all'?[]:MINAS_MAP[empresa]||[];
+  const fg=document.getElementById('df-mina-fg');
+  if(fg)fg.style.display=empresa==='all'?'none':'flex';
+  sel.innerHTML='<option value="all">Todas</option>'+minas.map(m=>`<option>${m}</option>`).join('');
+}
+
+function clearDashFilters(){
+  ['df-empresa','df-mina','df-status-dash','df-from','df-to'].forEach(id=>{
+    const el=document.getElementById(id);if(el)el.value=el.tagName==='SELECT'?(el.options[0]?.value||'all'):'';
+  });
+  updateMinaOptions();
+  renderDashboard();
+}
+
+function renderDashboard(){
+  updateMinaOptions();
+  const arr=getDashFiltered();
+  const total=arr.length;
+  const valTotal=arr.reduce((s,p)=>s+(p.valor||0),0);
+  const aguard=arr.filter(p=>p.status==='Aguardando documentação de embarque').length;
+  const miami=arr.filter(p=>p.status==='Pedido enviado para Miami').length;
+  const docProb=docs.filter(d=>d.status==='Pedido com Problemas').length;
+  const atrasados=arr.filter(p=>getPedAlert(p)==='red').length;
+  const urgentes=arr.filter(p=>getPedAlert(p)==='amber').length;
+
+  document.getElementById('kpi-row').innerHTML=`
+    <div class="kpi c-blue"><div class="kpi-label">Total Pedidos</div><div class="kpi-value">${total}</div></div>
+    <div class="kpi c-green"><div class="kpi-label">Valor Total (USD)</div><div class="kpi-value" style="font-size:13px">${fmtUSD(valTotal)}</div></div>
+    <div class="kpi c-amber"><div class="kpi-label">Aguard. Doc.</div><div class="kpi-value">${aguard}</div><div class="kpi-sub">pendentes</div></div>
+    <div class="kpi c-coral"><div class="kpi-label">Enviados Miami</div><div class="kpi-value">${miami}</div></div>
+    <div class="kpi c-purple"><div class="kpi-label">Docs c/ Problema</div><div class="kpi-value">${docProb}</div></div>
+    <div class="kpi" style="border-left:3px solid #e05a3a">
+      <div class="kpi-label">Atrasados</div>
+      <div class="kpi-value" style="color:#991b1b">${atrasados}</div>
+      <div class="kpi-sub" style="color:#e67e22">${urgentes} vencem em breve</div>
+    </div>`;
+
+  const empresa=document.getElementById('df-empresa')?.value||'all';
+
+  // Chart 1 — Status doughnut (filtered)
+  destroyChart('st');
+  const shortSt=['Processado','Aguard. doc.','Colet. Anglo','Colet. Samarco','Miami'];
+  chartRefs['st']=new Chart(document.getElementById('chartStatus'),{
+    type:'doughnut',
+    data:{labels:shortSt,datasets:[{data:STATUS_PED.map(s=>arr.filter(p=>p.status===s).length),backgroundColor:STATUS_PED_COLORS,borderWidth:2,borderColor:'#fff'}]},
+    options:{plugins:{legend:{position:'bottom',labels:{font:{size:9},boxWidth:10,padding:6}}},cutout:'58%',responsive:true,maintainAspectRatio:false}
+  });
+
+  // Chart 2 — Pedidos por Empresa (filtered)
+  destroyChart('emp');
+  const empData=EMPRESAS.map(e=>arr.filter(p=>p.empresa===e).length);
+  chartRefs['emp']=new Chart(document.getElementById('chartEmpresa'),{
+    type:'bar',
+    data:{labels:EMPRESAS,datasets:[{label:'Pedidos',data:empData,backgroundColor:CO_COLORS,borderRadius:4,borderSkipped:false}]},
+    options:{plugins:{legend:{display:false}},scales:{x:{ticks:{font:{size:9}},grid:{display:false}},y:{ticks:{font:{size:9},stepSize:1},grid:{color:'#eaf1f8'}}},responsive:true,maintainAspectRatio:false}
+  });
+
+  // Chart 3 — Pedidos por Mina (filtered by empresa from filter card)
+  destroyChart('mina');
+  const mCnt={};arr.forEach(p=>{if(p.mina)mCnt[p.mina]=(mCnt[p.mina]||0)+1;});
+  const mE2=Object.entries(mCnt).sort((a,b)=>b[1]-a[1]);
+  const minaColors=['#1a237e','#283593','#303f9f','#3949ab','#3f51b5','#5c6bc0','#7986cb','#9fa8da','#c5cae9','#e8eaf6','#bbdefb'];
+  chartRefs['mina']=new Chart(document.getElementById('chartMina'),{
+    type:'bar',
+    data:{labels:mE2.length?mE2.map(e=>e[0]):['—'],datasets:[{label:'Pedidos',data:mE2.length?mE2.map(e=>e[1]):[0],backgroundColor:minaColors,borderRadius:4,borderSkipped:false}]},
+    options:{indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{ticks:{font:{size:9},stepSize:1},grid:{color:'#eaf1f8'}},y:{ticks:{font:{size:9}},grid:{display:false}}},responsive:true,maintainAspectRatio:false}
+  });
+
+  // Chart 4 — Valor por Mês (USD, line, filtered)
+  destroyChart('mes');
+  const mc={};arr.forEach(p=>{if(!p.criado)return;const ym=p.criado.substring(0,7);if(!mc[ym])mc[ym]={cnt:0,val:0};mc[ym].cnt++;mc[ym].val+=p.valor||0;});
+  const months=Object.keys(mc).sort();
+  const fmtM=m=>{const[y,mo]=m.split('-');return MN[parseInt(mo)-1]+'/'+y.slice(2);};
+  // if empresa filter is set: single line; else: one line per empresa
+  let datasets;
+  if(empresa!=='all'){
+    datasets=[{
+      label:empresa,
+      data:months.map(m=>mc[m]?.val||0),
+      borderColor:CO_COLORS[EMPRESAS.indexOf(empresa)]||CO_COLORS[0],
+      backgroundColor:'transparent',borderWidth:2,tension:.35,
+      pointRadius:3,pointBackgroundColor:CO_COLORS[EMPRESAS.indexOf(empresa)]||CO_COLORS[0]
+    }];
+  } else {
+    datasets=EMPRESAS.map((e,i)=>({
+      label:e,
+      data:months.map(m=>{
+        const empMonth=arr.filter(p=>p.empresa===e&&p.criado&&p.criado.startsWith(m));
+        return empMonth.reduce((s,p)=>s+(p.valor||0),0);
+      }),
+      borderColor:CO_COLORS[i],backgroundColor:'transparent',borderWidth:2,tension:.35,
+      pointRadius:3,pointBackgroundColor:CO_COLORS[i]
+    }));
+  }
+  chartRefs['mes']=new Chart(document.getElementById('chartMes'),{
+    type:'line',
+    data:{labels:months.map(fmtM),datasets},
+    options:{
+      plugins:{legend:{position:'bottom',labels:{font:{size:9},boxWidth:10,padding:6}}},
+      scales:{
+        x:{ticks:{font:{size:9}},grid:{display:false}},
+        y:{ticks:{font:{size:9},callback:v=>'$'+(v/1000).toFixed(0)+'k'},grid:{color:'#eaf1f8'}}
+      },
+      responsive:true,maintainAspectRatio:false
+    }
+  });
+}
+
+// Wire empresa filter to update mina dropdown
+document.addEventListener('DOMContentLoaded',()=>{
+  const dfEmp=document.getElementById('df-empresa');
+  if(dfEmp)dfEmp.addEventListener('change',()=>{updateMinaOptions();renderDashboard();});
+});
+
+
+// ═══════════════════════════════════════
+// KANBAN
+// ═══════════════════════════════════════
+function nowKb(){return new Date().toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});}
+
+const KB_RESP=['Marcos','Paula','Aldo','Willian','Francisco','Alexandre','Comercial','Financeiro','Matriz - Tucson','Vale','Anglo'];
+const KB_RESP_OPTS=KB_RESP.map(r=>`<option>${r}</option>`).join('');
+
+let kbCards=loadData('kb_cards_v1',null);
+let kbArchive=loadData('kb_archive_v1',null)||{comercial:[],rma:[]};
+
+if(!kbCards){
+  const t=nowKb();
+  kbCards={
+    comercial:[
+      {id:'kc1',board:'comercial',col:'fazer',  title:'Verificar documentos Vale Carajas',      prio:'alta',   resp:'Marcos',    serial:'',notes:'',history:[{ts:t,col:'fazer',lbl:'Criado'}]},
+      {id:'kc2',board:'comercial',col:'fazendo',title:'Enviar proforma Anglo Minas Rio',          prio:'urgente',resp:'Comercial', serial:'',notes:'',history:[{ts:t,col:'fazer',lbl:'Criado'},{ts:t,col:'fazendo',lbl:'Iniciado'}]},
+      {id:'kc3',board:'comercial',col:'feito',  title:'Confirmar embarque PED-2024-001',          prio:'normal', resp:'Marcos',    serial:'',notes:'Confirmado por e-mail em 15/03',history:[{ts:t,col:'fazer',lbl:'Criado'},{ts:t,col:'fazendo',lbl:'Iniciado'},{ts:t,col:'feito',lbl:'Concluido'}]},
+    ],
+    rma:[
+      {id:'kr1',board:'rma',col:'fazer',  title:'Sensor de pressao Komatsu 930E',       prio:'urgente',resp:'Aldo',   serial:'KM-930E-0047',notes:'',history:[{ts:t,col:'fazer',lbl:'Aberto'}]},
+      {id:'kr2',board:'rma',col:'fazendo',title:'Display painel operador PC8000',        prio:'alta',   resp:'Willian',serial:'PC8K-D-0012', notes:'Aguardando peca',history:[{ts:t,col:'fazer',lbl:'Aberto'},{ts:t,col:'fazendo',lbl:'Em Reparo'}]},
+      {id:'kr3',board:'rma',col:'feito',  title:'Joystick controle HD785 Vale Salobo',  prio:'normal', resp:'Aldo',   serial:'HD785-JS-003',notes:'Reparo concluido, enviado 10/04',history:[{ts:t,col:'fazer',lbl:'Aberto'},{ts:t,col:'fazendo',lbl:'Em Reparo'},{ts:t,col:'feito',lbl:'Concluido'}]},
+    ],
+  };
+  saveData('kb_cards_v1',kbCards);
+}
+
+let kbActiveBoard='comercial';
+let kbDraggingId=null;
+let kbNoteCardId=null;
+
+function switchBoard(board,btn){
+  kbActiveBoard=board;
+  document.querySelectorAll('.kb-board-tab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('kb-board-comercial').style.display=board==='comercial'?'':'none';
+  document.getElementById('kb-board-rma').style.display=board==='rma'?'':'none';
+  document.getElementById('kb-form-comercial').style.display=board==='comercial'?'':'none';
+  document.getElementById('kb-form-rma').style.display=board==='rma'?'':'none';
+  renderKb(board);
+}
+
+// ─── CALENDAR ────────────────────────────────────────────────────────────
+let calNotes=loadData('cal_notes_v1',{}); // key: 'YYYY-MM-DD', value: string[]
+let calYear=new Date().getFullYear();
+let calMonth=new Date().getMonth(); // 0-based
+let calOpenDate=null;
+
+const CAL_MONTHS=['Janeiro','Fevereiro','Marco','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+const CAL_BOARD_KEY=()=>kbActiveBoard; // notes shared across boards (single calendar)
+
+function calKey(y,m,d){return`${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;}
+
+function calNav(dir){
+  calMonth+=dir;
+  if(calMonth<0){calMonth=11;calYear--;}
+  if(calMonth>11){calMonth=0;calYear++;}
+  renderCal();
+}
+
+function renderCal(){
+  const lbl=document.getElementById('cal-month-lbl');
+  if(lbl)lbl.textContent=CAL_MONTHS[calMonth]+' '+calYear;
+  const grid=document.getElementById('cal-grid');
+  if(!grid)return;
+  const today=new Date();
+  const firstDay=new Date(calYear,calMonth,1).getDay();
+  const daysInMonth=new Date(calYear,calMonth+1,0).getDate();
+  const daysInPrev=new Date(calYear,calMonth,0).getDate();
+  let cells=[];
+  // prev month filler
+  for(let i=firstDay-1;i>=0;i--){
+    const d=daysInPrev-i;
+    cells.push({day:d,month:calMonth-1<0?11:calMonth-1,year:calMonth-1<0?calYear-1:calYear,other:true});
+  }
+  // current month
+  for(let d=1;d<=daysInMonth;d++){
+    cells.push({day:d,month:calMonth,year:calYear,other:false});
+  }
+  // next month filler
+  let next=1;
+  while(cells.length%7!==0)cells.push({day:next++,month:calMonth+1>11?0:calMonth+1,year:calMonth+1>11?calYear+1:calYear,other:true});
+
+  grid.innerHTML=cells.map(c=>{
+    const key=calKey(c.year,c.month,c.day);
+    const notes=calNotes[key]||[];
+    const isToday=!c.other&&c.day===today.getDate()&&c.month===today.getMonth()&&c.year===today.getFullYear();
+    const hasNotes=notes.length>0;
+    const preview=notes.slice(0,2).map(n=>`<span class="kb-cal-note-dot">${n.substring(0,18)+(n.length>18?'...':'')}</span>`).join('');
+    const more=notes.length>2?`<span class="kb-cal-more">+${notes.length-2} mais</span>`:'';
+    return`<div class="kb-cal-day${isToday?' today':''}${c.other?' other-month':''}${hasNotes?' has-notes':''}"
+      onclick="openDayNote('${key}',${c.day},${c.month},${c.year})">
+      <span class="kb-cal-day-num">${c.day}</span>
+      ${hasNotes?`<span class="kb-cal-notif-badge">${notes.length}</span>`:''}
+      <div class="kb-cal-day-notes-preview">${preview}${more}</div>
+    </div>`;
+  }).join('');
+}
+
+function openDayNote(key,day,month,year){
+  calOpenDate=key;
+  const months=['Janeiro','Fevereiro','Marco','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  document.getElementById('kb-day-title').textContent=day+' de '+months[month]+' de '+year;
+  renderDayNotesList(key);
+  document.getElementById('kb-day-overlay').classList.remove('hidden');
+  setTimeout(()=>document.getElementById('kb-day-input').focus(),60);
+}
+function closeDayNote(){
+  document.getElementById('kb-day-overlay').classList.add('hidden');
+  document.getElementById('kb-day-input').value='';
+  calOpenDate=null;
+  renderCal();
+}
+function renderDayNotesList(key){
+  const notes=calNotes[key]||[];
+  const list=document.getElementById('kb-day-notes-list');
+  if(notes.length===0){
+    list.innerHTML=`<div class="kb-day-empty">Nenhuma anotacao para este dia. Adicione abaixo.</div>`;
+    return;
+  }
+  list.innerHTML=notes.map((n,i)=>`
+    <div class="kb-day-note-item">
+      <span class="kb-day-note-text">${n}</span>
+      <button class="kb-day-note-del" onclick="deleteDayNote('${key}',${i})" title="Remover">X</button>
+    </div>`).join('');
+}
+function saveDayNote(){
+  const txt=document.getElementById('kb-day-input').value.trim();
+  if(!txt||!calOpenDate)return;
+  if(!calNotes[calOpenDate])calNotes[calOpenDate]=[];
+  calNotes[calOpenDate].push(txt);
+  saveData('cal_notes_v1',calNotes);
+  document.getElementById('kb-day-input').value='';
+  renderDayNotesList(calOpenDate);
+  toast('Anotacao salva!');
+}
+function deleteDayNote(key,idx){
+  if(!calNotes[key])return;
+  calNotes[key].splice(idx,1);
+  if(calNotes[key].length===0)delete calNotes[key];
+  saveData('cal_notes_v1',calNotes);
+  renderDayNotesList(key);
+  toast('Anotacao removida');
+}
+
+function renderKb(board){
+  ['fazer','fazendo','feito'].forEach(col=>{
+    const p=board[0];
+    const el=document.getElementById(`cards-${p}-${col}`);
+    const cnt=document.getElementById(`kb-${p}-${col}-cnt`);
+    if(!el)return;
+    const cards=(kbCards[board]||[]).filter(c=>c.col===col);
+    if(cnt)cnt.textContent=cards.length;
+    el.innerHTML=cards.map(c=>renderCard(c,board,col)).join('');
+    el.querySelectorAll('.kb-card').forEach(card=>{
+      card.addEventListener('dragstart',e=>{kbDraggingId=card.dataset.id;card.classList.add('dragging');e.dataTransfer.effectAllowed='move';});
+      card.addEventListener('dragend',()=>{document.querySelectorAll('.kb-card').forEach(c=>c.classList.remove('dragging'));kbDraggingId=null;});
+    });
+    el.addEventListener('dragover',e=>{e.preventDefault();el.classList.add('drag-over');});
+    el.addEventListener('dragleave',()=>el.classList.remove('drag-over'));
+    el.addEventListener('drop',e=>{e.preventDefault();el.classList.remove('drag-over');dropCard(board,col);});
+  });
+}
+
+function renderCard(c,board,col){
+  const lbl={comercial:{fazer:'Entradas',fazendo:'Fazendo',feito:'Feito'},rma:{fazer:'Aguardando',fazendo:'Em Reparo',feito:'Concluido'}};
+  const pLbl={normal:'Normal',alta:'Alta',urgente:'Urgente'};
+
+  const moveBar=`<div class="kb-move-bar">
+    ${col!=='fazer'?`<button class="kb-move-btn" onclick="moveCard('${board}','${c.id}','${col==='fazendo'?'fazer':'fazendo'}')">← ${col==='fazendo'?lbl[board].fazer:lbl[board].fazendo}</button>`:''}
+    ${col!=='feito'?`<button class="kb-move-btn" onclick="moveCard('${board}','${c.id}','${col==='fazer'?'fazendo':'feito'}')">→ ${col==='fazer'?lbl[board].fazendo:lbl[board].feito}</button>`:''}
+  </div>`;
+
+  const pct=Number(c.progress||0);
+  const progressBar=col==='fazendo'?`
+    <div class="kb-progress-wrap">
+      <div class="kb-progress-lbl">
+        <span class="kb-progress-txt">Progresso</span>
+        <span class="kb-progress-pct">${pct}%</span>
+      </div>
+      <div class="kb-progress-track" onclick="setProgressClick('${board}','${c.id}',event,this)" title="Clique para definir o progresso">
+        <div class="kb-progress-fill" style="width:${pct}%"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:4px">
+        ${[0,25,50,75,100].map(v=>`<button onclick="setProgress('${board}','${c.id}',${v})" style="font-size:9px;padding:1px 4px;border:1px solid rgba(255,255,255,.25);border-radius:3px;background:${pct===v?'rgba(255,255,255,.35)':'rgba(255,255,255,.1)'};color:rgba(255,255,255,.85);cursor:pointer;font-family:inherit">${v}%</button>`).join('')}
+      </div>
+    </div>`:'';
+
+  const histHTML=col==='feito'?`
+    <div class="kb-hist">
+      <div class="kb-hist-title">Historico / Timeline</div>
+      <div class="kb-hist-tl">
+        ${(c.history||[]).map(h=>`
+          <div class="kb-hist-item">
+            <span class="kb-hist-dot ${h.col}"></span>
+            <span class="kb-hist-txt">${h.lbl}<span class="kb-hist-ts">${h.ts}</span></span>
+          </div>`).join('')}
+      </div>
+    </div>
+    <button class="kb-archive-btn" onclick="archiveCard('${board}','${c.id}')">Arquivar e remover do Kanban</button>`:'';
+
+  return`<div class="kb-card" draggable="true" data-id="${c.id}">
+    <div class="kb-card-top">
+      <div style="flex:1">
+        ${c.serial?`<div class="kb-card-serial">${c.serial}</div>`:''}
+        <div class="kb-card-title">${c.title}</div>
+        ${c.notes?`<div class="kb-card-notes">${c.notes}</div>`:''}
+      </div>
+      <div class="kb-card-actions">
+        <button class="kb-act-btn" onclick="openNote('${board}','${c.id}')">Editar</button>
+        <button class="kb-act-btn del" onclick="deleteCard('${board}','${c.id}')">X</button>
+      </div>
+    </div>
+    <div class="kb-card-meta">
+      <span class="kb-card-prio ${c.prio||'normal'}">${pLbl[c.prio||'normal']}</span>
+      ${c.resp?`<span class="kb-card-resp">${c.resp}</span>`:''}
+    </div>
+    <div class="kb-card-date">${(c.history&&c.history[0])?c.history[0].ts:'—'}</div>
+    ${progressBar}
+    ${moveBar}
+    ${histHTML}
+  </div>`;
+}
+
+function addCard(board){
+  const r=board==='rma';
+  const titleEl   = document.getElementById(r?'kb-r-title':'kb-c-title');
+  const prioEl    = document.getElementById(r?'kb-r-prio':'kb-c-prio');
+  const respEl    = document.getElementById(r?'kb-r-resp':'kb-c-resp');
+  const commentEl = document.getElementById(r?'kb-r-comment':'kb-c-comment');
+  const serialEl  = r?document.getElementById('kb-r-serial'):null;
+  const title=(titleEl?.value||'').trim();
+  if(!title){toast('Digite o titulo da tarefa');return;}
+  kbCards[board].unshift({
+    id:'kb'+Date.now(), board, col:'fazer', title,
+    prio:prioEl?.value||'normal',
+    resp:respEl?.value||'',
+    serial:serialEl?.value?.trim()||'',
+    notes:commentEl?.value?.trim()||'',
+    progress:0,
+    history:[{ts:nowKb(),col:'fazer',lbl:r?'Aberto':'Criado'}]
+  });
+  saveData('kb_cards_v1',kbCards);
+  titleEl.value='';
+  if(commentEl)commentEl.value='';
+  if(serialEl)serialEl.value='';
+  if(prioEl)prioEl.value='normal';
+  if(respEl)respEl.value='';
+  renderKb(board);
+  toast('Tarefa adicionada!');
+}
+
+function moveCard(board,id,toCol){
+  const card=(kbCards[board]||[]).find(c=>c.id===id);if(!card)return;
+  card.col=toCol;
+  if(toCol==='fazendo'&&!card.progress)card.progress=0;
+  const lbl={comercial:{fazer:'Entrada',fazendo:'Iniciado',feito:'Concluido'},rma:{fazer:'Aberto',fazendo:'Em Reparo',feito:'Concluido'}};
+  card.history.push({ts:nowKb(),col:toCol,lbl:lbl[board][toCol]||toCol});
+  saveData('kb_cards_v1',kbCards);renderKb(board);
+  toast('Movido para: '+(lbl[board][toCol]||toCol));
+}
+
+function dropCard(board,toCol){
+  if(!kbDraggingId)return;
+  const card=(kbCards[board]||[]).find(c=>c.id===kbDraggingId);
+  if(!card||card.col===toCol)return;
+  moveCard(board,kbDraggingId,toCol);
+}
+
+function setProgress(board,id,pct){
+  const card=(kbCards[board]||[]).find(c=>c.id===id);if(!card)return;
+  card.progress=pct;
+  saveData('kb_cards_v1',kbCards);
+  renderKb(board);
+}
+
+function setProgressClick(board,id,event,trackEl){
+  const rect=trackEl.getBoundingClientRect();
+  const x=event.clientX-rect.left;
+  const pct=Math.round(Math.min(100,Math.max(0,(x/rect.width)*100))/5)*5;
+  setProgress(board,id,pct);
+}
+
+function archiveCard(board,id){
+  if(!confirm('Arquivar e remover este item do Kanban?'))return;
+  const idx=(kbCards[board]||[]).findIndex(c=>c.id===id);
+  if(idx===-1)return;
+  const card=kbCards[board].splice(idx,1)[0];
+  card.archivedAt=nowKb();
+  if(!kbArchive[board])kbArchive[board]=[];
+  kbArchive[board].unshift(card);
+  saveData('kb_cards_v1',kbCards);
+  saveData('kb_archive_v1',kbArchive);
+  renderKb(board);toast('Item arquivado!');
+}
+
+function downloadArchive(board){
+  const items=(kbArchive[board]||[]).concat((kbCards[board]||[]).filter(c=>c.col==='feito'));
+  if(!items.length){toast('Nenhum item para exportar');return;}
+  if(typeof XLSX==='undefined'){toast('Biblioteca XLSX nao carregada');return;}
+  const rows=items.map(c=>({
+    'Titulo':c.title,
+    'Prioridade':c.prio||'normal',
+    'Responsavel':c.resp||'',
+    'N Serie':c.serial||'',
+    'Comentario':c.notes||'',
+    'Progresso':(c.progress||0)+'%',
+    'Criado em':(c.history&&c.history[0])?c.history[0].ts:'',
+    'Arquivado em':c.archivedAt||'',
+    'Historico':(c.history||[]).map(h=>h.lbl+' ('+h.ts+')').join(' → '),
+  }));
+  const ws=XLSX.utils.json_to_sheet(rows);
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,board==='rma'?'RMA Concluidos':'Comercial Concluidos');
+  XLSX.writeFile(wb,`arquivo_${board}_${new Date().toLocaleDateString('pt-BR').replace(/\//g,'-')}.xlsx`);
+  toast('Arquivo baixado!');
+}
+
+function deleteCard(board,id){
+  if(!confirm('Excluir esta tarefa permanentemente?'))return;
+  kbCards[board]=(kbCards[board]||[]).filter(c=>c.id!==id);
+  saveData('kb_cards_v1',kbCards);renderKb(board);toast('Tarefa removida');
+}
+
+function openNote(board,id){
+  const card=(kbCards[board]||[]).find(c=>c.id===id);if(!card)return;
+  kbNoteCardId={board,id};
+  document.getElementById('kb-note-card-title').textContent='Editar — '+card.title.substring(0,38)+(card.title.length>38?'...':'');
+  document.getElementById('kb-edit-title').value=card.title||'';
+  document.getElementById('kb-edit-prio').value=card.prio||'normal';
+  const respSel=document.getElementById('kb-edit-resp');
+  respSel.innerHTML=`<option value="">Selecione...</option>${KB_RESP_OPTS}`;
+  respSel.value=card.resp||'';
+  document.getElementById('kb-note-text').value=card.notes||'';
+  const sf=document.getElementById('kb-edit-serial-field');
+  const si=document.getElementById('kb-edit-serial');
+  sf.style.display=board==='rma'?'flex':'none';
+  si.value=card.serial||'';
+  document.getElementById('kb-note-overlay').classList.remove('hidden');
+  setTimeout(()=>document.getElementById('kb-edit-title').focus(),60);
+}
+function closeNote(){document.getElementById('kb-note-overlay').classList.add('hidden');kbNoteCardId=null;}
+function saveNote(){
+  if(!kbNoteCardId)return;
+  const {board,id}=kbNoteCardId;
+  const card=(kbCards[board]||[]).find(c=>c.id===id);if(!card)return;
+  const newTitle=document.getElementById('kb-edit-title').value.trim();
+  if(!newTitle){toast('O titulo nao pode ficar vazio');return;}
+  card.title=newTitle;
+  card.prio=document.getElementById('kb-edit-prio').value||'normal';
+  card.resp=document.getElementById('kb-edit-resp').value||'';
+  card.notes=document.getElementById('kb-note-text').value.trim();
+  if(board==='rma')card.serial=document.getElementById('kb-edit-serial').value.trim();
+  saveData('kb_cards_v1',kbCards);closeNote();renderKb(board);toast('Card atualizado!');
+}
+
+// ═══════════════════════════════════════
+// HISTORICO DE ALTERACOES (Ideia 2)
+// ═══════════════════════════════════════
+let pedHistorico=loadData('ped_historico_v1',[]);
+function addPedHistory(p,campo,descricao){
+  pedHistorico.unshift({ts:nowStr(),pedido:p.pedido,empresa:p.empresa,mina:p.mina||'',campo,descricao});
+  if(pedHistorico.length>500)pedHistorico.length=500;
+  saveData('ped_historico_v1',pedHistorico);
+}
+
+// ═══════════════════════════════════════
+// RELATORIOS (Ideia 4)
+// ═══════════════════════════════════════
+function getRelFiltered(){
+  const empresa=document.getElementById('rel-empresa')?.value||'all';
+  const status=document.getElementById('rel-status')?.value||'all';
+  const from=document.getElementById('rel-from')?.value||'';
+  const to=document.getElementById('rel-to')?.value||'';
+  return pedidos.filter(p=>{
+    if(empresa!=='all'&&p.empresa!==empresa)return false;
+    if(status!=='all'&&p.status!==status)return false;
+    if(from&&p.criado<from)return false;
+    if(to&&p.criado>to)return false;
+    return true;
+  });
+}
+function renderRelatorios(){
+  const arr=getRelFiltered();
+  const valTotal=arr.reduce((s,p)=>s+(p.valor||0),0);
+  const atrasados=arr.filter(p=>getPedAlert(p)==='red');
+  const urgentes=arr.filter(p=>getPedAlert(p)==='amber');
+  const kpiEl=document.getElementById('rel-kpi-row');
+  if(kpiEl)kpiEl.innerHTML=`
+    <div class="kpi c-blue"><div class="kpi-label">Pedidos</div><div class="kpi-value">${arr.length}</div></div>
+    <div class="kpi c-green"><div class="kpi-label">Valor Total (USD)</div><div class="kpi-value" style="font-size:13px">${fmtUSD(valTotal)}</div></div>
+    <div class="kpi c-coral"><div class="kpi-label">Atrasados</div><div class="kpi-value" style="color:#991b1b">${atrasados.length}</div></div>
+    <div class="kpi c-amber"><div class="kpi-label">Vencem em breve</div><div class="kpi-value" style="color:#7a4f00">${urgentes.length}</div></div>
+    <div class="kpi c-purple"><div class="kpi-label">Hist. alteracoes</div><div class="kpi-value">${pedHistorico.length}</div></div>`;
+  // Notif list
+  const all=[...atrasados,...urgentes];
+  const notifEl=document.getElementById('notif-list');
+  if(notifEl){
+    if(!all.length){notifEl.innerHTML=`<div style="font-size:12.5px;color:var(--gray-400);font-style:italic;padding:4px 0">Nenhum pedido atrasado ou urgente.</div>`;}
+    else notifEl.innerHTML=all.map(p=>{
+      const diff=diffDays(p.previsao);const late=diff<0;
+      const msg=late?`${Math.abs(diff)} dia(s) atrasado`:`Vence em ${diff} dia(s)`;
+      return`<div class="notif-item ${late?'red':'amber'}">
+        <span class="notif-dot ${late?'red':'amber'}"></span>
+        <div class="notif-txt"><strong>${p.pedido}</strong> — ${p.empresa}${p.mina?' / '+p.mina:''}<br>
+        <span style="font-size:11.5px;color:var(--gray-600)">${p.status} | Previsao: ${fmtDate(p.previsao)} | ${fmtUSD(p.valor)}</span></div>
+        <span class="notif-badge ${late?'red':'amber'}">${msg}</span>
+      </div>`;
+    }).join('');
+  }
+  // Historico table
+  const tbody=document.getElementById('rel-hist-tbody');
+  if(tbody){
+    if(!pedHistorico.length){tbody.innerHTML=`<tr><td colspan="6"><div class="empty-state">Nenhuma alteracao registrada ainda.</div></td></tr>`;}
+    else tbody.innerHTML=pedHistorico.slice(0,200).map(h=>`<tr>
+      <td style="font-size:11px;white-space:nowrap;color:var(--gray-400)">${h.ts}</td>
+      <td class="td-ped">${h.pedido}</td><td>${h.empresa}</td><td>${h.mina||'—'}</td>
+      <td><span class="hist-field-pill">${h.campo}</span></td>
+      <td style="font-size:12.5px">${h.descricao}</td>
+    </tr>`).join('');
+  }
+}
+function clearRelFiltros(){
+  ['rel-empresa','rel-status','rel-from','rel-to'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=el.tagName==='SELECT'?(el.options[0]?.value||'all'):'';});
+  renderRelatorios();
+}
+
+// NOTIFICACOES (Ideia 1)
+function buildAlertText(){
+  const arr=pedidos.filter(p=>getPedAlert(p));
+  if(!arr.length)return null;
+  return'*MODULAR KOMATSU — Alertas de Prazo*\n\n'+arr.map(p=>{
+    const diff=diffDays(p.previsao);const late=diff<0;
+    return`${late?'ATRASADO':'URGENTE'}: ${p.pedido} | ${p.empresa}${p.mina?' / '+p.mina:''}\nStatus: ${p.status}\nPrevisao: ${fmtDate(p.previsao)} | Valor: ${fmtUSD(p.valor)}\n${late?`${Math.abs(diff)} dia(s) de atraso`:`Vence em ${diff} dia(s)`}`;
+  }).join('\n\n---\n\n');
+}
+function sendWhatsAppAlerts(){
+  const txt=buildAlertText();
+  if(!txt){toast('Nenhum alerta para enviar');return;}
+  window.open(`https://wa.me/?text=${encodeURIComponent(txt)}`,'_blank');
+  toast('Abrindo WhatsApp...');
+}
+function copyEmailAlerts(){
+  const txt=buildAlertText();
+  if(!txt){toast('Nenhum alerta para copiar');return;}
+  const area=document.getElementById('notif-copy-area');
+  const txtEl=document.getElementById('notif-email-txt');
+  if(area&&txtEl){
+    area.style.display='';
+    txtEl.value='Assunto: [MODULAR KOMATSU] Alertas de Prazo\n\nPrezados,\n\nSegue resumo dos pedidos com prazo vencido ou prestes a vencer:\n\n'+txt+'\n\nAtenciosamente,\nTime Comercial — Modular Komatsu';
+    txtEl.select();try{document.execCommand('copy');}catch(e){}
+    toast('Texto copiado!');
+  }
+}
+function exportRelXLS(){
+  if(typeof XLSX==='undefined'){toast('XLSX nao carregado');return;}
+  const arr=getRelFiltered();
+  const ws=XLSX.utils.json_to_sheet(arr.map(p=>({'Pedido':p.pedido,'Empresa':p.empresa,'Mina':p.mina||'','SO':p.so,'Valor (USD)':p.valor,'Status':p.status,'Criado em':fmtDate(p.criado),'Previsao':fmtDate(p.previsao),'Alerta':getPedAlert(p)==='red'?'Atrasado':getPedAlert(p)==='amber'?'Urgente':'OK','Comentarios':(p.comentarios||[]).map(c=>c.texto).join(' | ')})));
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Pedidos');
+  XLSX.writeFile(wb,`relatorio_pedidos_${new Date().toLocaleDateString('pt-BR').replace(/\//g,'-')}.xlsx`);toast('Exportado!');
+}
+function exportDocsRelXLS(){
+  if(typeof XLSX==='undefined')return;
+  const ws=XLSX.utils.json_to_sheet(docs.map(d=>({'Empresa':d.empresa,'Mina':d.mina||'','Pedido':d.pedido,'SO':d.so,'Valor (USD)':d.valor,'Status':d.status,'Enviado em':fmtDate(d.enviado),'Aprovado em':fmtDate(d.aprovado),'Commercial Invoice':d.commInvoice||'','Payment Invoice':d.payInvoice||'','Data Est. Pag':fmtDate(d.dtPagamento),'Frete por':d.fretePor||'','N Embarque':d.numEmbarque||'','Swift':d.swift||''})));
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Documentos');
+  XLSX.writeFile(wb,`relatorio_docs_${new Date().toLocaleDateString('pt-BR').replace(/\//g,'-')}.xlsx`);toast('Documentos exportados!');
+}
+function exportHistoricoXLS(){
+  if(typeof XLSX==='undefined')return;
+  if(!pedHistorico.length){toast('Sem historico para exportar');return;}
+  const ws=XLSX.utils.json_to_sheet(pedHistorico.map(h=>({'Data/Hora':h.ts,'Pedido':h.pedido,'Empresa':h.empresa,'Mina':h.mina||'','Campo':h.campo,'Alteracao':h.descricao})));
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Historico');
+  XLSX.writeFile(wb,`historico_${new Date().toLocaleDateString('pt-BR').replace(/\//g,'-')}.xlsx`);toast('Historico exportado!');
+}
+function exportAtrasadosXLS(){
+  if(typeof XLSX==='undefined')return;
+  const arr=pedidos.filter(p=>getPedAlert(p));
+  if(!arr.length){toast('Nenhum pedido atrasado');return;}
+  const ws=XLSX.utils.json_to_sheet(arr.map(p=>{const diff=diffDays(p.previsao);return{'Pedido':p.pedido,'Empresa':p.empresa,'Mina':p.mina||'','Status':p.status,'Previsao':fmtDate(p.previsao),'Valor (USD)':p.valor,'Situacao':diff<0?`${Math.abs(diff)} dia(s) atrasado`:`Vence em ${diff} dia(s)`};}));
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Atrasados');
+  XLSX.writeFile(wb,`atrasados_${new Date().toLocaleDateString('pt-BR').replace(/\//g,'-')}.xlsx`);toast('Exportado!');
+}
+
+// ═══════════════════════════════════════
+// TRACKING DE FRETE (Ideia 6)
+// ═══════════════════════════════════════
+let trackings=loadData('trackings_v1',null);
+if(!trackings){
+  trackings=[
+    {id:'t1',pedido:'PED-2024-001',modal:'Aereo',num:'AWB 123-45678901',carrier:'DHL',status:'Em transito',eta:'2024-04-15',url:'https://www.dhl.com',obs:'Saiu de Miami em 10/04',ts:nowStr()},
+    {id:'t2',pedido:'PED-2024-003',modal:'Maritimo',num:'BL MSCU1234567',carrier:'MSC',status:'Alfandega',eta:'2024-04-28',url:'https://www.msc.com',obs:'Aguardando despacho aduaneiro',ts:nowStr()},
+  ];
+  saveData('trackings_v1',trackings);
+}
+const TRK_STATUS_CL={'Aguardando coleta':'trk-aguardando','Em transito':'trk-transito','Alfandega':'trk-alfandega','Saiu para entrega':'trk-saiu','Entregue':'trk-entregue','Problema na entrega':'trk-problema'};
+const TRK_MODAL_CL={'Aereo':'trk-aereo','Maritimo':'trk-maritimo','Rodoviario':'trk-rodoviario'};
+function renderTracking(){
+  const search=(document.getElementById('trk-search')?.value||'').toLowerCase();
+  const modal=document.getElementById('trk-filter-modal')?.value||'';
+  const status=document.getElementById('trk-filter-status')?.value||'';
+  const arr=trackings.filter(t=>{
+    if(search&&!t.pedido.toLowerCase().includes(search)&&!(t.carrier||'').toLowerCase().includes(search)&&!(t.num||'').toLowerCase().includes(search))return false;
+    if(modal&&t.modal!==modal)return false;
+    if(status&&t.status!==status)return false;
+    return true;
+  }).sort((a,b)=>(b.ts||'').localeCompare(a.ts||''));
+  const cont=document.getElementById('tracking-container');
+  if(!cont)return;
+  if(!arr.length){cont.innerHTML=`<div class="table-wrap"><div class="empty-state">Nenhum tracking encontrado.</div></div>`;return;}
+  cont.innerHTML=arr.map(t=>`
+    <div class="trk-card">
+      <div class="trk-card-hdr">
+        <span class="trk-pedido">${t.pedido}</span>
+        ${t.modal?`<span class="trk-badge ${TRK_MODAL_CL[t.modal]||''}">${t.modal}</span>`:''}
+        ${t.num?`<span class="trk-num">${t.num}</span>`:''}
+        <span class="trk-badge ${TRK_STATUS_CL[t.status]||''}" style="margin-left:auto">${t.status||'—'}</span>
+      </div>
+      <div class="trk-body">
+        <div class="trk-field"><span class="trk-field-lbl">Transportadora</span><span class="trk-field-val">${t.carrier||'—'}</span></div>
+        <div class="trk-field"><span class="trk-field-lbl">ETA</span><span class="trk-field-val">${fmtDate(t.eta)}</span></div>
+        <div class="trk-field"><span class="trk-field-lbl">Observacao</span><span class="trk-field-val">${t.obs||'—'}</span></div>
+        <div class="trk-field"><span class="trk-field-lbl">Atualizado em</span><span class="trk-field-val" style="font-size:11px;color:var(--gray-400)">${t.ts||'—'}</span></div>
+        ${t.url?`<div class="trk-field"><span class="trk-field-lbl">Link</span><a class="trk-link" href="${t.url}" target="_blank" rel="noopener">Abrir rastreamento</a></div>`:''}
+      </div>
+      <div class="trk-actions">
+        <button class="btn-sec" style="font-size:11.5px;padding:4px 12px" onclick="editTracking('${t.id}')">Editar</button>
+        ${t.url?`<a class="btn-pri" href="${t.url}" target="_blank" rel="noopener" style="font-size:11.5px;padding:4px 14px;text-decoration:none">Rastrear</a>`:''}
+        <button class="btn-del" style="margin-left:auto" onclick="deleteTracking('${t.id}')">X</button>
+      </div>
+    </div>`).join('');
+}
+function resetTracking(){
+  ['trk-pedido','trk-modal','trk-num','trk-carrier','trk-status','trk-eta','trk-url','trk-obs'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  document.getElementById('trk-err-pedido')?.classList.remove('show');
+  window._editTrkId=null;
+}
+function submitTracking(){
+  const pedido=(document.getElementById('trk-pedido')?.value||'').trim();
+  const errEl=document.getElementById('trk-err-pedido');
+  if(!pedido){errEl?.classList.add('show');return;}
+  errEl?.classList.remove('show');
+  const obj={id:window._editTrkId||('t'+Date.now()),pedido,modal:document.getElementById('trk-modal')?.value||'',num:document.getElementById('trk-num')?.value?.trim()||'',carrier:document.getElementById('trk-carrier')?.value?.trim()||'',status:document.getElementById('trk-status')?.value||'',eta:document.getElementById('trk-eta')?.value||'',url:document.getElementById('trk-url')?.value?.trim()||'',obs:document.getElementById('trk-obs')?.value?.trim()||'',ts:nowStr()};
+  if(window._editTrkId){const idx=trackings.findIndex(t=>t.id===window._editTrkId);if(idx>-1)trackings[idx]=obj;}
+  else trackings.unshift(obj);
+  saveData('trackings_v1',trackings);resetTracking();renderTracking();
+  toast(window._editTrkId?'Tracking atualizado!':'Tracking salvo!');window._editTrkId=null;
+}
+function editTracking(id){
+  const t=trackings.find(x=>x.id===id);if(!t)return;
+  window._editTrkId=id;
+  ['pedido','modal','num','carrier','status','eta','url','obs'].forEach(f=>{const el=document.getElementById('trk-'+f);if(el)el.value=t[f]||'';});
+  document.querySelector('#section-tracking .form-card')?.scrollIntoView({behavior:'smooth',block:'start'});
+}
+function deleteTracking(id){
+  if(!confirm('Excluir este tracking?'))return;
+  trackings=trackings.filter(t=>t.id!==id);saveData('trackings_v1',trackings);renderTracking();toast('Removido');
+}
+function clearTrkFilters(){['trk-search','trk-filter-modal','trk-filter-status'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});renderTracking();}
+function exportTrackingXLS(){
+  if(typeof XLSX==='undefined')return;
+  const ws=XLSX.utils.json_to_sheet(trackings.map(t=>({'Pedido':t.pedido,'Modal':t.modal||'','N Rastreamento':t.num||'','Transportadora':t.carrier||'','Status':t.status||'','ETA':fmtDate(t.eta),'Observacao':t.obs||'','Link':t.url||'','Atualizado':t.ts||''})));
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Tracking');
+  XLSX.writeFile(wb,`tracking_${new Date().toLocaleDateString('pt-BR').replace(/\//g,'-')}.xlsx`);toast('Exportado!');
+}
+
+// ═══════════════════════════════════════
+document.addEventListener('libs-ready',function(){
+  const loader=document.getElementById('loader');
+  if(loader){loader.classList.add('gone');setTimeout(()=>loader.remove(),500);}
+  selectRole('admin');
+});
+</script>
+</body>
+</html>
