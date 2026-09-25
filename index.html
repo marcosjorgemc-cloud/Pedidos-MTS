@@ -8,10 +8,16 @@
 (function(){
   var CJ=['https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js','https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js','https://unpkg.com/chart.js@4.4.1/dist/chart.umd.min.js'];
   var XL=['https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js','https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js','https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js'];
+  var PJ=['https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js','https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js','https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.min.js'];
   var done=0;
-  function fin(){if(++done>=2)document.dispatchEvent(new Event('libs-ready'));}
-  function load(urls,i){if(i>=urls.length){fin();return;}var s=document.createElement('script');s.src=urls[i];s.onload=fin;s.onerror=function(){load(urls,i+1);};document.head.appendChild(s);}
-  load(CJ,0);load(XL,0);
+  function fin(){if(++done>=3){
+    if(window.pdfjsLib&&window.__pdfjsBase){
+      pdfjsLib.GlobalWorkerOptions.workerSrc=window.__pdfjsBase.replace('pdf.min.js','pdf.worker.min.js');
+    }
+    document.dispatchEvent(new Event('libs-ready'));
+  }}
+  function load(urls,i){if(i>=urls.length){fin();return;}var s=document.createElement('script');s.src=urls[i];s.onload=function(){if(urls===PJ)window.__pdfjsBase=urls[i];fin();};s.onerror=function(){load(urls,i+1);};document.head.appendChild(s);}
+  load(CJ,0);load(XL,0);load(PJ,0);
 })();
 </script>
 <style>
@@ -160,6 +166,11 @@ tbody td{padding:8px 11px;color:var(--gray-800);vertical-align:middle}
 .s-miami{background:#fce8e8;color:#7a1a1a}
 .d-aguardando{background:#fff4e0;color:#7a4f00}.d-aprovado{background:#e8f7f0;color:#1a6a40}
 .d-problema{background:#fce8e8;color:#7a1a1a}
+.v-ok{background:#e8f7f0;color:#1a6a40}.v-warn{background:#fff4e0;color:#7a4f00}
+.v-err{background:#fce8e8;color:#7a1a1a}.v-info{background:var(--gray-100);color:var(--gray-600)}
+.val-badges{display:flex;flex-wrap:wrap;gap:4px}
+.val-db-box{display:flex;align-items:center;gap:12px;flex-wrap:wrap;width:100%}
+.val-diff-pos{color:#c0392b;font-weight:700}.val-diff-zero{color:var(--gray-400)}
 .pill-vale{background:#e6f7ff;color:#0c5b8a;border:1px solid #b5d9f4}
 .pill-anglo-mr{background:#eaedfb;color:#1a3a80;border:1px solid #b5c5f4}
 .pill-anglo-ba{background:#f0eafb;color:#5a1a8a;border:1px solid #d4b5f4}
@@ -522,6 +533,7 @@ input[type="number"].inline-edit{min-width:90px}
     <button onclick="showSection('embarque')">Docs de Embarque</button>
     <button class="admin-only" onclick="showSection('relatorios')" style="display:none">Relatorios</button>
     <button class="admin-only" onclick="showSection('kanban')" style="display:none">Kanban</button>
+    <button class="admin-only" onclick="showSection('validador')" style="display:none">Validador PDF</button>
   </nav>
   <div class="hdr-right">
     <span class="hdr-role" id="hdr-role-badge"></span>
@@ -1125,6 +1137,54 @@ input[type="number"].inline-edit{min-width:90px}
   </div>
 </div>
 
+<!-- ══════ VALIDADOR DE PDF ══════ -->
+<div id="section-validador" class="section admin-only" style="display:none">
+  <div class="page-hd"><h1>Validador de Pedidos (PDF)</h1><p>Confere Part Number, Qty, Preço e Mina do pedido em PDF contra a base de preços — acesso restrito ao administrador</p></div>
+
+  <div class="rel-filter-card">
+    <div class="dash-filter-title">1. Base de Preços por Part Number</div>
+    <div class="val-db-box">
+      <div id="val-db-status" style="font-size:13px;color:var(--gray-400)">Nenhuma base carregada ainda.</div>
+      <div style="margin-left:auto;display:flex;gap:6px">
+        <button class="btn-excel btn-excel-import" onclick="document.getElementById('val-db-input').click()">
+          <svg class="xls-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          Carregar Base de Preços (Excel)
+        </button>
+        <input type="file" id="val-db-input" class="hidden-input" accept=".xlsx,.xls" onchange="loadPriceDBFile(event)"/>
+      </div>
+    </div>
+  </div>
+
+  <div class="rel-filter-card">
+    <div class="dash-filter-title">2. Pedido(s) em PDF</div>
+    <div class="val-db-box">
+      <div class="fg" style="min-width:280px;flex:1">
+        <label>Selecionar PDF(s) do pedido (texto selecionável)</label>
+        <input type="file" id="val-pdf-input" accept="application/pdf" multiple onchange="handlePdfSelection(event)"/>
+      </div>
+      <button class="btn-pri" style="align-self:flex-end" onclick="runValidacao()">Validar Pedido(s)</button>
+    </div>
+    <div id="val-pdf-list" style="font-size:11.5px;color:var(--gray-400);margin-top:6px"></div>
+  </div>
+
+  <div class="table-wrap">
+    <div class="table-hdr">
+      <div class="table-hdr-left"><span style="font-size:13px;font-weight:700;color:var(--k800)">Resultado da Validação</span></div>
+      <div id="val-summary" style="font-size:12px;color:var(--gray-400)"></div>
+    </div>
+    <div class="tbl-scroll">
+      <table>
+        <thead><tr>
+          <th>Arquivo / Pedido</th><th>Part Number</th><th>Qty</th>
+          <th>Preço no Pedido</th><th>Preço na Base</th><th>Diferença</th>
+          <th>Mina (Plant)</th><th>Status</th>
+        </tr></thead>
+        <tbody id="val-results-tbody"><tr><td colspan="8" style="text-align:center;color:var(--gray-400);padding:22px">Nenhuma validação executada ainda.</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
 <!-- Duplicate Detection Modal -->
 <div class="dup-overlay hidden" id="dup-overlay" onclick="if(event.target===this)closeDupModal()">
   <div class="dup-box">
@@ -1364,7 +1424,7 @@ function sBadgeDoc(s){
 // ═══════════════════════════════════════
 // NAV
 // ═══════════════════════════════════════
-const SECS=['dashboard','pedidos','embarque','relatorios','kanban'];
+const SECS=['dashboard','pedidos','embarque','relatorios','kanban','validador'];
 function showSection(id){
   SECS.forEach(s=>{const el=document.getElementById('section-'+s);if(el)el.classList.remove('visible');});
   document.querySelectorAll('nav button').forEach((b,i)=>b.classList.toggle('active',SECS[i]===id));
@@ -1374,6 +1434,7 @@ function showSection(id){
   if(id==='embarque'){renderDocs();renderMiniDash();}
   if(id==='relatorios')renderRelatorios();
   if(id==='kanban'&&typeof renderKb==='function'){renderKb(kbActiveBoard);renderCal();}
+  if(id==='validador'&&typeof renderValidadorDBStatus==='function')renderValidadorDBStatus();
 }
 
 // ═══════════════════════════════════════
@@ -2914,6 +2975,262 @@ function confirmRemoveDups(event){
       button.innerHTML=button.dataset.originalHtml||'Remover Selecionados';
     }
   }
+}
+
+// ═══════════════════════════════════════
+// VALIDADOR DE PDF — Part Number / Qty / Preço / Mina
+// ═══════════════════════════════════════
+
+// Mapeamento das abas da planilha "LPU de Produtos" -> colunas de Part Number e Preço 2026.
+// Prioridade em caso de PN duplicado entre abas: a PRIMEIRA aba desta lista vence.
+const PRICE_DB_SHEETS=[
+  {sheet:'1. QQP - Hardware importado (2)',   pnCol:'C', priceCol:'I', label:'1.0 Hardware importado'},
+  {sheet:'1.1 QQP - HW Itens novos 2026',     pnCol:'C', priceCol:'H', label:'1.1 HW Itens novos'},
+  {sheet:'2. QQP - Software Importado',       pnCol:'C', priceCol:'M', label:'2.0 Software Importado'},
+  {sheet:'3. Software Plataforma',            pnCol:'B', priceCol:'E', label:'3.0 Software Plataforma'},
+];
+const VAL_PRICE_TOL=0.005; // 0.5% de tolerância antes de marcar divergência de preço
+let priceDB=loadData('price_db_v1',null);
+let valSelectedFiles=[];
+
+function colLetterToIndex(letter){let n=0;for(let i=0;i<letter.length;i++)n=n*26+(letter.charCodeAt(i)-64);return n-1;}
+function isValidPN(v){
+  if(v===null||v===undefined)return false;
+  if(typeof v==='number')return true;
+  return /^\d{4,8}$/.test(String(v).trim());
+}
+
+function loadPriceDBFile(evt){
+  const file=evt.target.files[0];
+  if(!file)return;
+  const reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      const wb=XLSX.read(e.target.result,{type:'binary'});
+      const db={};
+      let total=0;
+      PRICE_DB_SHEETS.forEach(cfg=>{
+        const ws=wb.Sheets[cfg.sheet];
+        if(!ws)return;
+        const range=XLSX.utils.decode_range(ws['!ref']);
+        const pnIdx=colLetterToIndex(cfg.pnCol);
+        const priceIdx=colLetterToIndex(cfg.priceCol);
+        for(let r=range.s.r;r<=range.e.r;r++){
+          const pnCell=ws[XLSX.utils.encode_cell({r,c:pnIdx})];
+          const priceCell=ws[XLSX.utils.encode_cell({r,c:priceIdx})];
+          const pnVal=pnCell?pnCell.v:null;
+          const priceVal=priceCell?priceCell.v:null;
+          if(isValidPN(pnVal)&&typeof priceVal==='number'){
+            const pn=String(typeof pnVal==='number'?Math.trunc(pnVal):pnVal).trim();
+            if(!(pn in db)){
+              db[pn]={price:Math.round(priceVal*10000)/10000,sheet:cfg.label};
+              total++;
+            }
+          }
+        }
+      });
+      if(total===0){
+        toast('Nenhum Part Number encontrado — confira se é a planilha "LPU de Produtos" correta.');
+        return;
+      }
+      priceDB=db;
+      saveData('price_db_v1',db);
+      saveData('price_db_meta_v1',{loadedAt:new Date().toLocaleString('pt-BR'),count:total,fileName:file.name});
+      renderValidadorDBStatus();
+      toast('Base de preços carregada: '+total+' Part Numbers.');
+    }catch(err){
+      console.error(err);
+      toast('Erro ao ler a planilha de preços. Confira o arquivo.');
+    }
+  };
+  reader.readAsBinaryString(file);
+  evt.target.value='';
+}
+
+function renderValidadorDBStatus(){
+  const el=document.getElementById('val-db-status');
+  if(!el)return;
+  const meta=loadData('price_db_meta_v1',null);
+  if(!priceDB||!meta){
+    el.textContent='Nenhuma base carregada ainda.';
+    el.style.color='var(--gray-400)';
+  }else{
+    el.innerHTML=`<b>${meta.count}</b> Part Numbers carregados de <b>${meta.fileName}</b> — ${meta.loadedAt}`;
+    el.style.color='var(--gray-600)';
+  }
+}
+
+function handlePdfSelection(evt){
+  valSelectedFiles=Array.from(evt.target.files||[]);
+  const listEl=document.getElementById('val-pdf-list');
+  listEl.textContent=valSelectedFiles.length
+    ? valSelectedFiles.length+' arquivo(s) selecionado(s): '+valSelectedFiles.map(f=>f.name).join(', ')
+    : '';
+}
+
+// Todas as minas conhecidas (de MINAS_MAP), para reconhecer o campo "Plant:" do PDF
+function allKnownMinas(){
+  const out=[];
+  Object.keys(MINAS_MAP).forEach(emp=>MINAS_MAP[emp].forEach(m=>out.push({mina:m,empresa:emp})));
+  return out;
+}
+
+function matchMina(plantText){
+  if(!plantText)return null;
+  const found=allKnownMinas().find(({mina})=>plantText.toLowerCase().includes(mina.toLowerCase()));
+  return found||null;
+}
+
+function parsePriceRaw(raw){
+  // ex: "159,558.16 USD" -> {value:159558.16, currency:'USD'}
+  if(!raw)return{value:null,currency:null};
+  const m=raw.match(/^([\d.,]+)\s*([A-Z]{3})?$/);
+  if(!m)return{value:null,currency:null};
+  const num=parseFloat(m[1].replace(/,/g,''));
+  return{value:isNaN(num)?null:num,currency:m[2]||null};
+}
+
+async function extractPOFields(file){
+  const buf=await file.arrayBuffer();
+  const pdf=await pdfjsLib.getDocument({data:buf}).promise;
+  const page=await pdf.getPage(1);
+  const content=await page.getTextContent();
+  const items=content.items
+    .map(it=>({text:it.str,x:it.transform[4],y:it.transform[5]}))
+    .filter(it=>it.text.trim()!=='');
+  const fullText=items.map(it=>it.text).join('\n');
+
+  const orderMatch=fullText.match(/Order Number:\s*(\S+)/);
+  const plantMatch=fullText.match(/Plant:\s*(.+)/);
+  const orderNumber=orderMatch?orderMatch[1].trim():null;
+  const plant=plantMatch?plantMatch[1].trim():null;
+
+  const findWord=(txt)=>items.find(it=>it.text.trim()===txt);
+  const partHeader=findWord('Part');
+  const qtyHeader=findWord('Qty');
+  const priceHeader=findWord('Unit Price');
+  const itemHeader=findWord('ITEM');
+  const additionalItem=items.find(it=>it.text.trim().startsWith('Additional'));
+
+  const result={fileName:file.name,orderNumber,plant,lineItems:[],parseOk:false};
+  if(partHeader&&qtyHeader&&priceHeader&&itemHeader){
+    const colPartX=partHeader.x,colQtyX=qtyHeader.x,colPriceX=priceHeader.x;
+    const headerY=itemHeader.y;
+    const stopY=additionalItem?additionalItem.y+2:-Infinity;
+    const near=(x,t,tol=6)=>t!=null&&Math.abs(x-t)<=tol;
+    const rowItems=items.filter(it=>it.y<headerY-5&&it.y>stopY);
+    const qtyEntries=rowItems.filter(it=>near(it.x,colQtyX)).sort((a,b)=>b.y-a.y);
+
+    result.lineItems=qtyEntries.map((qe,idx)=>{
+      const bandTop=qe.y+2;
+      const bandBottom=idx+1<qtyEntries.length?qtyEntries[idx+1].y+2:stopY;
+      const bandItems=rowItems.filter(it=>it.y<=bandTop&&it.y>bandBottom);
+      const partVals=bandItems.filter(it=>near(it.x,colPartX)).map(it=>it.text.trim());
+      const priceVals=bandItems.filter(it=>near(it.x,colPriceX)).map(it=>it.text.trim());
+      return{
+        partNumber:partVals.join(' ').trim()||null,
+        qty:qe.text.trim(),
+        unitPriceRaw:priceVals.slice(0,2).join(' ').trim()||null,
+      };
+    });
+    result.parseOk=result.lineItems.length>0;
+  }
+  return result;
+}
+
+function fmtUSD(v){return v==null?'—':v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});}
+
+function buildValRow(po,li){
+  const badges=[];
+  let priceCellHtml='<span style="color:var(--gray-400)">—</span>';
+  let diffCellHtml='<span class="val-diff-zero">—</span>';
+
+  const pn=li.partNumber&&li.partNumber!=='-'?li.partNumber:null;
+  const {value:priceInPO,currency}=parsePriceRaw(li.unitPriceRaw);
+
+  if(!pn){
+    badges.push('<span class="badge v-info">Item de serviço (sem PN)</span>');
+  }else if(!priceDB||!(pn in priceDB)){
+    badges.push('<span class="badge v-warn">PN não encontrado na base</span>');
+  }else{
+    const dbEntry=priceDB[pn];
+    priceCellHtml=`${fmtUSD(dbEntry.price)} USD <span style="color:var(--gray-400);font-size:10.5px">(${dbEntry.sheet})</span>`;
+    if(priceInPO!=null){
+      const diffPct=(priceInPO-dbEntry.price)/dbEntry.price;
+      const diffAbs=Math.abs(diffPct);
+      diffCellHtml=diffAbs<VAL_PRICE_TOL
+        ?'<span class="val-diff-zero">0%</span>'
+        :`<span class="val-diff-pos">${diffPct>0?'+':''}${(diffPct*100).toFixed(1)}%</span>`;
+      if(diffAbs>=VAL_PRICE_TOL){
+        badges.push('<span class="badge v-err">Divergência de Preço</span>');
+      }
+    }
+    if(currency&&currency!=='USD'){
+      badges.push(`<span class="badge v-warn">Moeda inesperada (${currency})</span>`);
+    }
+  }
+
+  const minaMatch=matchMina(po.plant);
+  let minaHtml='<span style="color:var(--gray-400)">—</span>';
+  if(po.plant){
+    minaHtml=minaMatch
+      ?`${po.plant}`
+      :`${po.plant}`;
+    if(!minaMatch)badges.push('<span class="badge v-warn">Mina não reconhecida</span>');
+  }else{
+    badges.push('<span class="badge v-warn">Campo Plant não encontrado</span>');
+  }
+
+  if(badges.length===0)badges.push('<span class="badge v-ok">OK</span>');
+
+  return`<tr>
+    <td>${po.fileName}${po.orderNumber?'<br><span style="color:var(--gray-400);font-size:11px">Pedido '+po.orderNumber+'</span>':''}</td>
+    <td>${pn||'<span style="color:var(--gray-400)">—</span>'}</td>
+    <td>${li.qty||'—'}</td>
+    <td>${li.unitPriceRaw||'<span style="color:var(--gray-400)">—</span>'}</td>
+    <td>${priceCellHtml}</td>
+    <td>${diffCellHtml}</td>
+    <td style="font-size:12px">${minaHtml}</td>
+    <td><div class="val-badges">${badges.join('')}</div></td>
+  </tr>`;
+}
+
+async function runValidacao(){
+  if(!valSelectedFiles.length){toast('Selecione ao menos um PDF de pedido.');return;}
+  if(!priceDB){toast('Carregue a base de preços antes de validar.');return;}
+  if(typeof pdfjsLib==='undefined'){toast('Biblioteca de leitura de PDF ainda carregando, tente novamente em instantes.');return;}
+
+  const tbody=document.getElementById('val-results-tbody');
+  tbody.innerHTML='<tr><td colspan="8" style="text-align:center;color:var(--gray-400);padding:22px">Processando...</td></tr>';
+  const summaryEl=document.getElementById('val-summary');
+
+  let rowsHtml='';
+  let totalLines=0,okCount=0,issueCount=0,parseFailCount=0;
+
+  for(const file of valSelectedFiles){
+    try{
+      const po=await extractPOFields(file);
+      if(!po.parseOk){
+        parseFailCount++;
+        rowsHtml+=`<tr><td>${po.fileName}</td><td colspan="7"><span class="badge v-err">Não foi possível ler a tabela de itens — verifique se o PDF tem texto selecionável e segue o layout padrão</span></td></tr>`;
+        continue;
+      }
+      po.lineItems.forEach(li=>{
+        totalLines++;
+        const rowHtml=buildValRow(po,li);
+        if(rowHtml.includes('v-err')||rowHtml.includes('v-warn'))issueCount++;else okCount++;
+        rowsHtml+=rowHtml;
+      });
+    }catch(err){
+      console.error(err);
+      parseFailCount++;
+      rowsHtml+=`<tr><td>${file.name}</td><td colspan="7"><span class="badge v-err">Erro ao processar o arquivo (${(err&&err.message)||'erro desconhecido'})</span></td></tr>`;
+    }
+  }
+
+  tbody.innerHTML=rowsHtml||'<tr><td colspan="8" style="text-align:center;color:var(--gray-400);padding:22px">Nenhum item extraído.</td></tr>';
+  summaryEl.textContent=`${totalLines} item(ns) — ${okCount} OK, ${issueCount} com divergência/alerta${parseFailCount?`, ${parseFailCount} arquivo(s) não lido(s)`:''}`;
+  toast('Validação concluída.');
 }
 
 // ═══════════════════════════════════════
